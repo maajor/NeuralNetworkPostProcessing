@@ -1,0 +1,190 @@
+﻿#pragma kernel Conv2D
+#pragma kernel LeakyReLU
+#pragma kernel BatchNormalization
+#pragma kernel InputLayer
+#pragma kernel OutputLayer
+#pragma kernel UpSampling2D
+#pragma kernel ReLU
+#pragma kernel Tanh
+
+Texture2D<float3> InputImage;
+RWTexture2D<float3> OutputImage;
+
+Buffer<float> LayerInput0;
+Buffer<float> LayerInput1;
+RWBuffer<float> LayerOutput;
+Buffer<float> Weights;
+uint4 WeightsShape;//for conv2d: n_Hk, n_Wk, n_Ci, n_Ck; for other: size, 0, 0, 0
+uint2 Stride;
+uint3 InputShape;//n_Hi, n_Wi, n_Ci
+uint3 OutputShape;//n_Ho, n_Wo, n_Co=n_Ck
+uint3 InputShapeIdMultiplier;
+uint3 OutputShapeIdMultiplier;
+uint4 WeightsShapeIdMultiplier;
+uint2 Size;
+float Alpha;
+
+#define n_Wk WeightsShape.y
+#define n_Hk WeightsShape.x
+#define n_Ck WeightsShape.w
+#define n_Wi InputShape.y
+#define n_Hi InputShape.x
+#define n_Ci InputShape.z
+#define n_Wo OutputShape.y
+#define n_Ho OutputShape.x
+#define n_Co OutputShape.z
+
+groupshared float cache[32];
+
+uint MultidimIdToArrayId(uint3 id, uint3 size) {
+	id.x = id.x < 0 ? 0 : id.x;
+	id.y = id.y < 0 ? 0 : id.y;
+	id.x = id.x > size.x ? size.x : id.x;
+	id.y = id.y > size.y ? size.y : id.y;
+	return id.x * size.y * size.z + id.y * size.z + id.z;
+}
+
+//we assume feature < 32 for each conv layer
+[numthreads(1,1,32)]
+void Conv2D(uint3 id : SV_DispatchThreadID)
+{
+	//id: outputshape
+	uint2 InputId = id.xy * Stride;
+
+	float bias = Weights[n_Wk * n_Hk * n_Ci * n_Ck + id.z];
+	float conv = 0;
+
+	uint3 offset = uint3((n_Wk - 1) / 2, (n_Hk - 1) / 2, 0);
+	
+	//each kernel x
+	for (uint p = 0; p < n_Wk; p++) {
+		//each kernel y
+		for (uint q = 0; q < n_Hk; q++) {
+			
+			int3 input_id = int3(InputId.yx, id.z) - offset + int3(p, q, 0);
+
+			if (id.z < n_Ci) {
+				if (any(input_id.xy < 0) || any(input_id.xy > InputShape.yx)) {
+					cache[id.z] = 0;
+				}
+				else {
+					//cache[id.z] = LayerInput0[input_id.y * n_Wi * n_Ci + input_id.x * n_Ci + input_id.z];
+					cache[id.z] = LayerInput0[dot(input_id.yxz, InputShapeIdMultiplier)];
+				}
+			}
+			
+			GroupMemoryBarrierWithGroupSync();
+			
+			//each layer input, n_Ci = kernel z
+			for (uint w = 0; w < n_Ci; w++) {
+				/*conv += cache[w] * Weights[
+					q * n_Wk * n_Ci * n_Ck +
+						p * n_Ci * n_Ck +
+						w * n_Ck +
+						id.z];*/
+				conv += cache[w] * Weights[dot(uint4(q, p, w, id.z), WeightsShapeIdMultiplier)];
+			}
+
+			GroupMemoryBarrierWithGroupSync();
+			
+
+			/*for (uint w = 0; w < n_Ci; w++) {
+				float conv_kernel_item = Weights[
+					q * n_Wk * n_Ci * n_Ck +
+						p * n_Ci * n_Ck +
+						w * n_Ck +
+						id.z];
+				int input_idx = (int)InputId.y - (int)((n_Wk - 1) / 2) + (int)p;
+				int input_idy = (int)InputId.x - (int)((n_Hk - 1) / 2) + (int)q;
+				float input_item = input_idx < 0 || input_idx >= n_Wi || input_idy < 0 || input_idy >= n_Hi ?
+					0.f :
+					LayerInput0[input_idy * n_Wi * n_Ci + input_idx * n_Ci + w];
+				conv += input_item * conv_kernel_item;
+
+			}*/
+			/*
+
+			float conv_kernel_item = Weights[
+					q * n_Wk * n_Ci * n_Ck +
+					p * n_Ci * n_Ck +
+					w * n_Ck +
+					id.z];
+			int input_idx = (int)InputId.y - (int)((n_Wk - 1) / 2) + (int)p;
+			int input_idy = (int)InputId.x - (int)((n_Hk - 1) / 2) + (int)q;
+			float input_item = input_idx < 0 || input_idx >= n_Wi || input_idy < 0 || input_idy >= n_Hi ?
+				0.f :
+				LayerInput0[input_idy * n_Wi * n_Ci + input_idx * n_Ci + w];
+			conv += input_item * conv_kernel_item;*/
+		}
+	}
+	//float debug = LayerInput0[InputId.x * n_Hi * n_Ci + InputId.y * n_Ci + 1];
+	//LayerOutput[MultidimIdToArrayId(id.xyz, OutputShape)] = conv + bias;
+	LayerOutput[dot(id.xyz, OutputShapeIdMultiplier)] = conv + bias;
+}
+
+[numthreads(32, 1, 1)]
+void ReLU(uint3 id : SV_DispatchThreadID)
+{
+	LayerOutput[id.x] = LayerInput0[id.x] > 0 ? LayerInput0[id.x] : 0;
+}
+
+[numthreads(32, 1, 1)]
+void Tanh(uint3 id : SV_DispatchThreadID)
+{
+	LayerOutput[id.x] = tanh(LayerInput0[id.x]);
+}
+
+[numthreads(32, 1, 1)]
+void LeakyReLU(uint3 id : SV_DispatchThreadID)
+{
+	LayerOutput[id.x] = LayerInput0[id.x] > 0 ? LayerInput0[id.x] : LayerInput0[id.x] * Alpha;
+}
+
+[numthreads(32, 1, 1)]
+void BatchNormalization(const uint3 id : SV_DispatchThreadID)
+{
+	float gamma		= Weights[id.y * 4];
+	float beta		= Weights[id.y * 4 + 1];
+	float mean_par	= Weights[id.y * 4 + 2];
+	float std_par	= Weights[id.y * 4 + 3];
+
+	const uint elements = n_Wi * n_Hi;
+	const uint stride = n_Ci;
+
+	uint idx = id.x * stride + id.y;
+	LayerOutput[idx] = (LayerInput0[idx] - mean_par) * gamma / sqrt(std_par + 1e-8) + beta;
+}
+
+[numthreads(8, 8, 1)]
+void UpSampling2D(uint3 id : SV_DispatchThreadID)
+{
+	float2 inputid = (float2)id.xy / (float2)Size.xy;
+	uint3 floor_inputid = uint3(floor(inputid), id.z);
+	float2 frac_inputid = inputid - floor_inputid.xy;
+	float bilinear_interp =
+		LayerInput0[MultidimIdToArrayId(floor_inputid, InputShape)] * (1 - frac_inputid.x) * (1 - frac_inputid.y) +
+		LayerInput0[MultidimIdToArrayId(floor_inputid + uint3(1, 0, 0), InputShape)] * (frac_inputid.x) * (1 - frac_inputid.y) +
+		LayerInput0[MultidimIdToArrayId(floor_inputid + uint3(0, 1, 0), InputShape)] * (1 - frac_inputid.x) * (frac_inputid.y) +
+		LayerInput0[MultidimIdToArrayId(floor_inputid + uint3(1, 1, 0), InputShape)] * (frac_inputid.x) * (frac_inputid.y);
+	LayerOutput[MultidimIdToArrayId(id, OutputShape)] = bilinear_interp;
+}
+
+[numthreads(8, 8, 1)]
+void InputLayer(uint3 id : SV_DispatchThreadID)
+{
+	uint2 remapid = uint2(id.y, InputShape.x - 1 - id.x);
+	float3 remap = InputImage[remapid.xy] * 2.0f - 1.0f;
+	LayerOutput[MultidimIdToArrayId(uint3(id.xy, 0), InputShape)] = remap.x;
+	LayerOutput[MultidimIdToArrayId(uint3(id.xy, 1), InputShape)] = remap.y;
+	LayerOutput[MultidimIdToArrayId(uint3(id.xy, 2), InputShape)] = remap.z;
+}
+
+[numthreads(8, 8, 1)]
+void OutputLayer(uint3 id : SV_DispatchThreadID)
+{
+	uint2 remapid = uint2(id.y, InputShape.x - 1 - id.x);
+	OutputImage[remapid.xy] = saturate(float3(
+		LayerInput0[MultidimIdToArrayId(uint3(id.xy, 0), InputShape)] * 0.5f + 0.5f,
+		LayerInput0[MultidimIdToArrayId(uint3(id.xy, 1), InputShape)] * 0.5f + 0.5f,
+		LayerInput0[MultidimIdToArrayId(uint3(id.xy, 2), InputShape)] * 0.5f + 0.5f));
+}
