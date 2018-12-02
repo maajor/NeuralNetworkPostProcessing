@@ -20,7 +20,6 @@ class DataLoader():
         imgs_B = []
         for img_path in batch_images:
             img = self.imread(img_path)
-            print(img_path)
 
             h, w, _ = img.shape
             _w = int(w/2)

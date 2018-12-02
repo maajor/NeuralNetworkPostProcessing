@@ -9,23 +9,24 @@ using UnityEditor;
 #endif
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;
+using UnityEngine.Rendering;
 using ComputeBuffer = UnityEngine.ComputeBuffer;
 
 public class NeuralNetworkModel
 {
     public List<NeuralNetworkLayer> Layers;
+    private InputLayer Input;
+    private OutputLayer Output;
+    private CommandBuffer cb;
 
     public void Load(
         string architecturePath = "Model/model_architecture",
         string weightsPath = "Model/model_weight")
     {
-        TextAsset architexturetext = Resources.Load<TextAsset>(architecturePath);
-        var modeljson = JsonConvert.DeserializeObject<KerasModelJson>(architexturetext.text);
-        LoadModel(modeljson.config);
-
-        TextAsset weightstext = Resources.Load<TextAsset>(weightsPath);
-        var weightsjson = JsonConvert.DeserializeObject<List<KerasLayerWeightJson>>(weightstext.text);
-        LoadWeight(weightsjson);
+        TextAsset architexturetext = Resources.Load<TextAsset>("Model/model_terrain");
+        var modeljson = JsonConvert.DeserializeObject<KerasJson>(architexturetext.text);
+        LoadModel(modeljson.model.config);
+        LoadWeight(modeljson.weights);
     }
 
     private void LoadModel(KerasLayersJson layersJson)
@@ -37,7 +38,8 @@ public class NeuralNetworkModel
             switch (layer.class_name)
             {
                 case "InputLayer":
-                    Layers.Add(new InputLayer(layer.config));
+                    Input = new InputLayer(layer.config);
+                    //Layers.Add(new InputLayer(layer.config));
                     break;
                 case "Conv2D":
                     Layers.Add(new Conv2D(layer.config));
@@ -69,9 +71,8 @@ public class NeuralNetworkModel
                 inputNodes.Add(layer.name, inputs);
             }
         }
-        NeuralNetworkLayer outputlayer = new OutputLayer(null);
-        outputlayer.InputLayersId = new List<int>(){ Layers.Count - 1};
-        Layers.Add(outputlayer);
+        Output = new OutputLayer(null);
+        Output.InputLayersId = new List<int>(){ Layers.Count - 1};
     }
 
     private void LoadWeight(List<KerasLayerWeightJson> weights)
@@ -101,41 +102,42 @@ public class NeuralNetworkModel
         }
     }
 
-    public void Init(Texture input)
+    public void Init(int height, int width)
     {
-        Layers[0].Init(new int4(input.height, input.width, 3, 0));
+        Input.Init(new int4(height, width, 3, 0));
+        Layers[0].Init(new int4(height, width, 3, 0));
         for (int i = 1; i < Layers.Count; i++)
         {
-            //int inputlayerid = Layers[i].InputLayersId[0];
             Layers[i].Init(Layers[i - 1].OutputShape);
         }
-        //Layers[Layers.Count - 1].Init(Layers[1].OutputShape);
+        Output.Init(Layers[Layers.Count - 1].OutputShape);
+    }
+    private int _height, _width;
+
+    public void Setup(CommandBuffer cmd, RenderTargetIdentifier src, int height, int width)
+    {
+        if (_height != height || _width != width)
+        {
+            Init(height, width);
+            _height = height;
+            _width = width;
+        }
+
+        Input.src = src;
+
+        cb = cmd;
     }
 
-    public Texture Predict(Texture input)
+    public RenderTexture Predict()
     {
-        Layers[0].Run(new object[1]{input});
+        Input.Run(null, cb);
+        Layers[0].Run(new object[1] { Input.Output }, cb);
         for (int i = 1; i < Layers.Count; i++)
         {
-            /*List<object> inputs = new List<object>();
-            foreach (var id in Layers[i].InputLayersId)
-            {
-                inputs.Add(Layers[id].Output);
-            }
-            Layers[i].Run(inputs.ToArray());*/
-            Layers[i].Run(new object[1] { Layers[i - 1].Output });
+            Layers[i].Run(new object[1] { Layers[i - 1].Output }, cb);
         }
-        /*ComputeBuffer cb = Layers[5].Output as ComputeBuffer;
-        float[] debug = new float[100];
-        cb.GetData(debug, 0, 0, 100);
-        string outstr = "";
-        for (int i = 0; i < 100; i++)
-        {
-            outstr += debug[i] + " ";
-        }
-        Debug.Log(outstr);*/
-       // Layers[Layers.Count - 1].Run(new object[1] { Layers[1].Output });
-        return Layers[Layers.Count - 1].Output as Texture;
+        Output.Run(new object[1] { Layers[Layers.Count - 1].Output }, cb);
+        return Output.outputTex;
     }
 
     public void Release()
@@ -144,6 +146,8 @@ public class NeuralNetworkModel
         {
             layer.Release();
         }
+        Input.Release();
+        Output.Release();
     }
 }
 
@@ -169,7 +173,7 @@ public class NeuralNetworkLayer
 
     }
 
-    public virtual void Run(object[] input)
+    public virtual void Run(object[] input, CommandBuffer cmd)
     {
         Output = input[0];
     }
@@ -188,31 +192,29 @@ public class NeuralNetworkLayer
 public class InputLayer: NeuralNetworkLayer
 {
     private ComputeBuffer outputbuffer;
+    public RenderTargetIdentifier src;
     public InputLayer(KerasLayerConfigJson config) : base(config)
     {
         KernelId = NeuralNetworkComputeShader.Instance.Kernel("InputLayer");
     }
 
-    public override void Run(object[] input)
+    public override void Run(object[] input, CommandBuffer cmd)
     {
-        NeuralNetworkComputeShader.Instance.Shader.SetTexture(
-            KernelId, "InputImage", input[0] as Texture);
-        NeuralNetworkComputeShader.Instance.Shader.SetBuffer(KernelId, "LayerOutput", outputbuffer);
-        NeuralNetworkComputeShader.Instance.Shader.SetInts("InputShape", new int[4]
+        cmd.SetComputeTextureParam(NeuralNetworkComputeShader.Instance.Shader, KernelId, "InputImage", src);
+        cmd.SetComputeBufferParam(NeuralNetworkComputeShader.Instance.Shader, KernelId, "LayerOutput", outputbuffer);
+        cmd.SetComputeIntParams(NeuralNetworkComputeShader.Instance.Shader, "InputShape", new int[3]
         {
             InputShape.x,
             InputShape.y,
-            InputShape.z,
-            InputShape.w
+            InputShape.z
         });
-        NeuralNetworkComputeShader.Instance.Shader.SetInts("InputShapeIdMultiplier", new int[3]
+        cmd.SetComputeIntParams(NeuralNetworkComputeShader.Instance.Shader, "InputShapeIdMultiplier", new int[3]
         {
             InputShape.y * InputShape.z,
             InputShape.z,
             1
         });
-        NeuralNetworkComputeShader.Instance.Shader.Dispatch(KernelId, InputShape.x / 8, InputShape.y / 8, 1);
-        Output = outputbuffer;
+        cmd.DispatchCompute(NeuralNetworkComputeShader.Instance.Shader, KernelId, InputShape.x / 8, InputShape.y / 8, 1);
     }
 
     public override void Init(int4 inputShape)
@@ -220,6 +222,7 @@ public class InputLayer: NeuralNetworkLayer
         base.Init(inputShape);
         outputbuffer?.Release();
         outputbuffer = new ComputeBuffer(OutputShape.x * OutputShape.y * OutputShape.z, sizeof(float));
+        Output = outputbuffer;
     }
 
     public override void Release()
@@ -269,7 +272,7 @@ public class Conv2D : NeuralNetworkLayer
                 }
             }
         }
-         Array.Copy(weightsKernel[1].arrayweight, 0, Weights, kernel_weight_length, bias_weight_length);
+        Array.Copy(weightsKernel[1].arrayweight, 0, Weights, kernel_weight_length, bias_weight_length);
         weightbuffer?.Release();
         weightbuffer = new ComputeBuffer(kernel_weight_length + bias_weight_length, sizeof(float));
         weightbuffer.SetData(Weights);
@@ -283,6 +286,7 @@ public class Conv2D : NeuralNetworkLayer
         OutputShape.z = Filters;
         outputbuffer?.Release();
         outputbuffer = new ComputeBuffer(OutputShape.x * OutputShape.y * OutputShape.z, sizeof(float));
+        Output = outputbuffer;
     }
 
     public override void Release()
@@ -291,67 +295,63 @@ public class Conv2D : NeuralNetworkLayer
         outputbuffer?.Release();
     }
 
-    public override void Run(object[] input)
+    public override void Run(object[] input, CommandBuffer cmd)
     {
-        Debug.Assert(OutputShape.z == Filters);
-        NeuralNetworkComputeShader.Instance.Shader.SetBuffer(
-            KernelId, "LayerInput0", input[0] as ComputeBuffer);
-        NeuralNetworkComputeShader.Instance.Shader.SetBuffer(
-            KernelId, "LayerOutput", outputbuffer);
-        NeuralNetworkComputeShader.Instance.Shader.SetBuffer(
-            KernelId, "Weights", weightbuffer);
-        NeuralNetworkComputeShader.Instance.Shader.SetInts("InputShape", new int[3]
+        cmd.SetComputeBufferParam(NeuralNetworkComputeShader.Instance.Shader, KernelId, "LayerInput0", input[0] as ComputeBuffer);
+        cmd.SetComputeBufferParam(NeuralNetworkComputeShader.Instance.Shader, KernelId, "LayerOutput", outputbuffer);
+        cmd.SetComputeBufferParam(NeuralNetworkComputeShader.Instance.Shader, KernelId, "Weights", weightbuffer);
+        cmd.SetComputeIntParams(NeuralNetworkComputeShader.Instance.Shader, "InputShape", new int[3]
         {
             InputShape.x,
             InputShape.y,
             InputShape.z
         });
-        NeuralNetworkComputeShader.Instance.Shader.SetInts("InputShapeIdMultiplier", new int[3]
+        cmd.SetComputeIntParams(NeuralNetworkComputeShader.Instance.Shader, "InputShapeIdMultiplier", new int[3]
         {
             InputShape.y * InputShape.z,
             InputShape.z,
             1
         });
-        NeuralNetworkComputeShader.Instance.Shader.SetInts("OutputShape", new int[3]
+        cmd.SetComputeIntParams(NeuralNetworkComputeShader.Instance.Shader, "OutputShape", new int[3]
         {
             OutputShape.x,
             OutputShape.y,
             OutputShape.z
         });
-        NeuralNetworkComputeShader.Instance.Shader.SetInts("OutputShapeIdMultiplier", new int[3]
+        cmd.SetComputeIntParams(NeuralNetworkComputeShader.Instance.Shader, "OutputShapeIdMultiplier", new int[3]
         {
             OutputShape.y * OutputShape.z,
             OutputShape.z,
             1
         });
-        NeuralNetworkComputeShader.Instance.Shader.SetInts("WeightsShape", new int[4]
+        cmd.SetComputeIntParams(NeuralNetworkComputeShader.Instance.Shader, "WeightsShape", new int[4]
         {
             KernalSize.x,
             KernalSize.y,
             InputShape.z,
             Filters
         });
-        NeuralNetworkComputeShader.Instance.Shader.SetInts("WeightsShapeIdMultiplier", new int[4]
+        cmd.SetComputeIntParams(NeuralNetworkComputeShader.Instance.Shader, "WeightsShapeIdMultiplier", new int[4]
         {
             KernalSize.y * InputShape.z * Filters,
             InputShape.z * Filters,
             Filters,
             1
         });
-        NeuralNetworkComputeShader.Instance.Shader.SetInts("Stride", new int[2]
+        cmd.SetComputeIntParams(NeuralNetworkComputeShader.Instance.Shader, "Stride", new int[2]
         {
             Stride.x,
             Stride.y
         });
         int group = Mathf.CeilToInt(OutputShape.z / 32.0f);
-        NeuralNetworkComputeShader.Instance.Shader.Dispatch(KernelId, OutputShape.x, OutputShape.y, group);
-        Output = outputbuffer;
+
+        cmd.DispatchCompute(NeuralNetworkComputeShader.Instance.Shader, KernelId, OutputShape.x, OutputShape.y, group);
     }
 }
 
 public class ReLU : NeuralNetworkLayer
 {
-    private ComputeBuffer outputbuffer;
+    protected ComputeBuffer outputbuffer;
     public ReLU(KerasLayerConfigJson config) : base(config)
     {
         KernelId = NeuralNetworkComputeShader.Instance.Kernel("ReLU");
@@ -362,6 +362,7 @@ public class ReLU : NeuralNetworkLayer
         base.Init(inputShape);
         outputbuffer?.Release();
         outputbuffer = new ComputeBuffer(OutputShape.x * OutputShape.y * OutputShape.z, sizeof(float));
+        Output = outputbuffer;
     }
 
     public override void Release()
@@ -369,14 +370,11 @@ public class ReLU : NeuralNetworkLayer
         outputbuffer?.Release();
     }
 
-    public override void Run(object[] input)
+    public override void Run(object[] input, CommandBuffer cmd)
     {
-        NeuralNetworkComputeShader.Instance.Shader.SetBuffer(
-            KernelId, "LayerInput0", input[0] as ComputeBuffer);
-        NeuralNetworkComputeShader.Instance.Shader.SetBuffer(
-            KernelId, "LayerOutput", outputbuffer);
-        NeuralNetworkComputeShader.Instance.Shader.Dispatch(KernelId, OutputShape.x * OutputShape.y * OutputShape.z / 32, 1, 1);
-        Output = outputbuffer;
+        cmd.SetComputeBufferParam(NeuralNetworkComputeShader.Instance.Shader, KernelId, "LayerInput0", input[0] as ComputeBuffer);
+        cmd.SetComputeBufferParam(NeuralNetworkComputeShader.Instance.Shader, KernelId, "LayerOutput", outputbuffer);
+        cmd.DispatchCompute(NeuralNetworkComputeShader.Instance.Shader, KernelId, OutputShape.x * OutputShape.y * OutputShape.z / 32, 1, 1);
     }
 }
 
@@ -393,6 +391,7 @@ public class Tanh : NeuralNetworkLayer
         base.Init(inputShape);
         outputbuffer?.Release();
         outputbuffer = new ComputeBuffer(OutputShape.x * OutputShape.y * OutputShape.z, sizeof(float));
+        Output = outputbuffer;
     }
 
     public override void Release()
@@ -400,55 +399,34 @@ public class Tanh : NeuralNetworkLayer
         outputbuffer?.Release();
     }
 
-    public override void Run(object[] input)
+    public override void Run(object[] input, CommandBuffer cmd)
     {
-        NeuralNetworkComputeShader.Instance.Shader.SetBuffer(
-            KernelId, "LayerInput0", input[0] as ComputeBuffer);
-        NeuralNetworkComputeShader.Instance.Shader.SetBuffer(
-            KernelId, "LayerOutput", outputbuffer);
-        NeuralNetworkComputeShader.Instance.Shader.Dispatch(KernelId, OutputShape.x * OutputShape.y * OutputShape.z / 32, 1, 1);
-        Output = outputbuffer;
+        cmd.SetComputeBufferParam(NeuralNetworkComputeShader.Instance.Shader, KernelId, "LayerInput0", input[0] as ComputeBuffer);
+        cmd.SetComputeBufferParam(NeuralNetworkComputeShader.Instance.Shader, KernelId, "LayerOutput", outputbuffer);
+        cmd.DispatchCompute(NeuralNetworkComputeShader.Instance.Shader, KernelId, OutputShape.x * OutputShape.y * OutputShape.z / 32, 1, 1);
     }
 }
 
 public class LeakyReLU : ReLU
 {
     public float Alpha;
-    private ComputeBuffer outputbuffer;
     public LeakyReLU(KerasLayerConfigJson config) : base(config)
     {
         Alpha = config.alpha;
         KernelId = NeuralNetworkComputeShader.Instance.Kernel("LeakyReLU");
     }
 
-    public override void Init(int4 inputShape)
+    public override void Run(object[] input, CommandBuffer cmd)
     {
-        base.Init(inputShape);
-        outputbuffer?.Release();
-        outputbuffer = new ComputeBuffer(OutputShape.x * OutputShape.y * OutputShape.z, sizeof(float));
-    }
-
-    public override void Release()
-    {
-        outputbuffer?.Release();
-    }
-
-    public override void Run(object[] input)
-    {
-        NeuralNetworkComputeShader.Instance.Shader.SetBuffer(
-            KernelId, "LayerInput0", input[0] as ComputeBuffer);
-        NeuralNetworkComputeShader.Instance.Shader.SetBuffer(
-            KernelId, "LayerOutput", outputbuffer);
-        NeuralNetworkComputeShader.Instance.Shader.SetFloat("Alpha",Alpha);
-        NeuralNetworkComputeShader.Instance.Shader.Dispatch(KernelId, OutputShape.x * OutputShape.y * OutputShape.z / 32, 1, 1);
-        Output = outputbuffer;
+        cmd.SetComputeBufferParam(NeuralNetworkComputeShader.Instance.Shader, KernelId, "LayerInput0", input[0] as ComputeBuffer);
+        cmd.SetComputeBufferParam(NeuralNetworkComputeShader.Instance.Shader, KernelId, "LayerOutput", outputbuffer);
+        cmd.SetComputeFloatParam(NeuralNetworkComputeShader.Instance.Shader, "Alpha", Alpha);
+        cmd.DispatchCompute(NeuralNetworkComputeShader.Instance.Shader, KernelId, OutputShape.x * OutputShape.y * OutputShape.z / 32, 1, 1);
     }
 }
 [System.Serializable]
 public class BatchNormalization : NeuralNetworkLayer
 {
-    public float Momentum;
-    public float Epsilon;
     private ComputeBuffer weightbuffer;
     private ComputeBuffer outputbuffer;
     public BatchNormalization(KerasLayerConfigJson config) : base(config)
@@ -460,10 +438,6 @@ public class BatchNormalization : NeuralNetworkLayer
     {
         WeightShape.x = weightsKernel[0].shape[0];
         float[] Weights = new float[WeightShape.x * 4];
-        /*for (int i = 0; i < 4; i++)
-        {
-            Array.Copy(weightsKernel[i].arrayweight, 0, Weights, i * WeightShape.x, WeightShape.x);
-        }*/
         for (int i = 0; i < WeightShape.x; i++)
         {
             Weights[i * 4]     = weightsKernel[0].arrayweight[i];
@@ -481,6 +455,7 @@ public class BatchNormalization : NeuralNetworkLayer
         base.Init(inputShape);
         outputbuffer?.Release();
         outputbuffer = new ComputeBuffer(OutputShape.x * OutputShape.y * OutputShape.z, sizeof(float));
+        Output = outputbuffer;
     }
 
     public override void Release()
@@ -489,28 +464,24 @@ public class BatchNormalization : NeuralNetworkLayer
         weightbuffer?.Release();
     }
 
-    public override void Run(object[] input)
+    public override void Run(object[] input, CommandBuffer cmd)
     {
-        NeuralNetworkComputeShader.Instance.Shader.SetBuffer(
-            KernelId, "LayerInput0", input[0] as ComputeBuffer);
-        NeuralNetworkComputeShader.Instance.Shader.SetBuffer(
-            KernelId, "LayerOutput", outputbuffer);
-        NeuralNetworkComputeShader.Instance.Shader.SetBuffer(
-            KernelId, "Weights", weightbuffer);
-        NeuralNetworkComputeShader.Instance.Shader.SetInts("InputShape", new int[3]
+        cmd.SetComputeBufferParam(NeuralNetworkComputeShader.Instance.Shader, KernelId, "LayerInput0", input[0] as ComputeBuffer);
+        cmd.SetComputeBufferParam(NeuralNetworkComputeShader.Instance.Shader, KernelId, "LayerOutput", outputbuffer);
+        cmd.SetComputeBufferParam(NeuralNetworkComputeShader.Instance.Shader, KernelId, "Weights", weightbuffer);
+        cmd.SetComputeIntParams(NeuralNetworkComputeShader.Instance.Shader, "InputShape", new int[3]
         {
             InputShape.x,
             InputShape.y,
             InputShape.z
         });
-        NeuralNetworkComputeShader.Instance.Shader.SetInts("OutputShape", new int[3]
+        cmd.SetComputeIntParams(NeuralNetworkComputeShader.Instance.Shader, "OutputShape", new int[3]
         {
             OutputShape.x,
             OutputShape.y,
             OutputShape.z
         });
-        NeuralNetworkComputeShader.Instance.Shader.Dispatch(KernelId, OutputShape.x * OutputShape.y / 32, OutputShape.z, 1);
-        Output = outputbuffer;
+        cmd.DispatchCompute(NeuralNetworkComputeShader.Instance.Shader, KernelId, OutputShape.x * OutputShape.y / 32, OutputShape.z, 1);
     }
 }
 
@@ -537,6 +508,7 @@ public class UpSampling2D : NeuralNetworkLayer
         OutputShape.xy *= Size;
         outputbuffer?.Release();
         outputbuffer = new ComputeBuffer(OutputShape.x * OutputShape.y * OutputShape.z, sizeof(float));
+        Output = outputbuffer;
     }
 
     public override void Release()
@@ -544,72 +516,74 @@ public class UpSampling2D : NeuralNetworkLayer
         outputbuffer?.Release();
     }
 
-    public override void Run(object[] input)
+    public override void Run(object[] input, CommandBuffer cmd)
     {
-        NeuralNetworkComputeShader.Instance.Shader.SetBuffer(
-            KernelId, "LayerInput0", input[0] as ComputeBuffer);
-        NeuralNetworkComputeShader.Instance.Shader.SetBuffer(
-            KernelId, "LayerOutput", outputbuffer);
-        NeuralNetworkComputeShader.Instance.Shader.SetInts("InputShape", new int[3]
+        cmd.SetComputeBufferParam(NeuralNetworkComputeShader.Instance.Shader, KernelId, "LayerInput0", input[0] as ComputeBuffer);
+        cmd.SetComputeBufferParam(NeuralNetworkComputeShader.Instance.Shader, KernelId, "LayerOutput", outputbuffer);
+        cmd.SetComputeIntParams(NeuralNetworkComputeShader.Instance.Shader, "InputShape", new int[3]
         {
             InputShape.x,
             InputShape.y,
             InputShape.z
         });
-        NeuralNetworkComputeShader.Instance.Shader.SetInts("OutputShape", new int[3]
+        cmd.SetComputeIntParams(NeuralNetworkComputeShader.Instance.Shader, "InputShapeIdMultiplier", new int[3]
+        {
+            InputShape.y * InputShape.z,
+            InputShape.z,
+            1
+        });
+        cmd.SetComputeIntParams(NeuralNetworkComputeShader.Instance.Shader, "OutputShape", new int[3]
         {
             OutputShape.x,
             OutputShape.y,
             OutputShape.z
         });
-        NeuralNetworkComputeShader.Instance.Shader.SetInts("Size", new int[2]
+        cmd.SetComputeIntParams(NeuralNetworkComputeShader.Instance.Shader, "OutputShapeIdMultiplier", new int[3]
+        {
+            OutputShape.y * OutputShape.z,
+            OutputShape.z,
+            1
+        });
+        cmd.SetComputeIntParams(NeuralNetworkComputeShader.Instance.Shader, "Size", new int[2]
         {
             Size.x,
             Size.y
         });
-        NeuralNetworkComputeShader.Instance.Shader.SetInts("InputShapeIdMultiplier", new int[3]
-        {
-            InputShape.y * InputShape.z,
-            InputShape.z,
-            1
-        });
-        NeuralNetworkComputeShader.Instance.Shader.Dispatch(KernelId, OutputShape.x / 8, OutputShape.y / 8, OutputShape.z);
-        Output = outputbuffer;
+        cmd.DispatchCompute(NeuralNetworkComputeShader.Instance.Shader, KernelId, OutputShape.x / 8, OutputShape.y / 8, OutputShape.z);
     }
 }
 
 public class OutputLayer : NeuralNetworkLayer
 {
-    private RenderTexture outputTex;
+    public RenderTexture outputTex;
     public OutputLayer(KerasLayerConfigJson config) : base(config)
     {
         KernelId = NeuralNetworkComputeShader.Instance.Kernel("OutputLayer");
     }
 
-    public override void Run(object[] input)
+    public override void Run(object[] input, CommandBuffer cmd)
     {
-        NeuralNetworkComputeShader.Instance.Shader.SetBuffer(KernelId, "LayerInput0", input[0] as ComputeBuffer);
-        NeuralNetworkComputeShader.Instance.Shader.SetTexture(KernelId, "OutputImage", outputTex);
-        NeuralNetworkComputeShader.Instance.Shader.SetInts("InputShape", new int[4]
+        cmd.SetComputeBufferParam(NeuralNetworkComputeShader.Instance.Shader, KernelId, "LayerInput0", input[0] as ComputeBuffer);
+        cmd.SetComputeTextureParam(NeuralNetworkComputeShader.Instance.Shader, KernelId, "OutputImage", outputTex);
+        cmd.SetComputeIntParams(NeuralNetworkComputeShader.Instance.Shader, "InputShape", new int[3]
         {
             InputShape.x,
             InputShape.y,
-            InputShape.z,
-            InputShape.w
+            InputShape.z
         });
-        NeuralNetworkComputeShader.Instance.Shader.SetInts("InputShapeIdMultiplier", new int[3]
+        cmd.SetComputeIntParams(NeuralNetworkComputeShader.Instance.Shader, "InputShapeIdMultiplier", new int[3]
         {
             InputShape.y * InputShape.z,
             InputShape.z,
             1
         });
-        NeuralNetworkComputeShader.Instance.Shader.Dispatch(KernelId, OutputShape.x / 8, OutputShape.y / 8, 1);
-        Output = outputTex;
+        cmd.DispatchCompute(NeuralNetworkComputeShader.Instance.Shader, KernelId, OutputShape.x / 8, OutputShape.y / 8, 1);
     }
 
     public override void Init(int4 inputShape)
     {
         base.Init(inputShape);
+        outputTex?.Release();
         outputTex = new RenderTexture(OutputShape.y, OutputShape.x, 0, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Linear);
         outputTex.enableRandomWrite = true;
         outputTex.Create();

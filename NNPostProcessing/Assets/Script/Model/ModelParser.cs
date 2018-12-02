@@ -14,7 +14,7 @@ public class ModelParser : MonoBehaviour {
     [MenuItem("Assets/TestPredict")]
     private static void Predict()
     {
-        Texture2D input = Selection.activeObject as Texture2D;
+        /*Texture2D input = Selection.activeObject as Texture2D;
         var model = new NeuralNetworkModel();
         model.Load();
         model.Init(input);
@@ -27,7 +27,7 @@ public class ModelParser : MonoBehaviour {
         {
             SaveRTToFile(output as RenderTexture);
         }
-        model.Release();
+        model.Release();*/
     }
 
     public static void SaveRTToFile(RenderTexture rt)
@@ -46,6 +46,13 @@ public class ModelParser : MonoBehaviour {
         Debug.Log("Saved to " + path);
     }
 #endif
+}
+
+[System.Serializable]
+public class KerasJson
+{
+    public KerasModelJson model;
+    public List<KerasLayerWeightJson> weights;
 }
 
 [System.Serializable]

@@ -15,7 +15,7 @@ from data_loader import DataLoader
 import numpy as np
 import os
 
-class Pix2Pix():
+class GAN():
     def __init__(self):
         # Input shape
         self.img_rows = 512
@@ -34,7 +34,7 @@ class Pix2Pix():
         self.disc_patch = (patch, patch, 1)
 
         # Number of filters in the first layer of G and D
-        self.gf = 16
+        self.gf = 8
         self.df = 8
 
         optimizer = Adam(0.0002, 0.5)
@@ -208,7 +208,7 @@ class Pix2Pix():
 
 
 if __name__ == '__main__':
-    gan = Pix2Pix()
-    gan.train(epochs=100, batch_size=1, sample_interval=300)
+    gan = GAN()
+    gan.train(epochs=50, batch_size=10, sample_interval=300)
     gan.save_model()
 
