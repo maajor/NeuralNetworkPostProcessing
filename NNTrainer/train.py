@@ -20,7 +20,7 @@ class GAN():
         # Input shape
         self.img_rows = 512
         self.img_cols = 512
-        self.channels = 3
+        self.channels = 4
         self.img_shape = (self.img_rows, self.img_cols, self.channels)
 
         # Configure data loader
@@ -74,36 +74,39 @@ class GAN():
     def build_generator(self):
         """U-Net Generator"""
 
-        def conv2d(layer_input, filters, f_size=4, bn=True):
+        def conv2d(layer_input, filters, f_size=3, bn=True):
             """Layers used during downsampling"""
             d = Conv2D(filters, kernel_size=f_size, strides=2, padding='same')(layer_input)
             d = LeakyReLU(alpha=0.2)(d)
             if bn:
-                d = BatchNormalization(momentum=0.8)(d)
+                d = BatchNormalization(momentum = 0.8)(d)
             return d
 
-        def deconv2d(layer_input, skip_input, filters, f_size=4, dropout_rate=0):
+        def deconv2d(layer_input, skip_input, filters, f_size=3, dropout_rate=0):
             """Layers used during upsampling"""
             u = UpSampling2D(size=2)(layer_input)
             u = Conv2D(filters, kernel_size=f_size, strides=1, padding='same', activation='relu')(u)
             if dropout_rate:
                 u = Dropout(dropout_rate)(u)
-            u = BatchNormalization(momentum=0.8)(u)
-            #u = Concatenate()([u, skip_input])
+            u = BatchNormalization(momentum = 0.8)(u)
+            u = Concatenate()([u, skip_input])
             return u
 
         # Image input
         d0 = Input(shape=self.img_shape)
 
         # Downsampling
-        d1 = conv2d(d0, self.gf, bn=False)
+        d1 = conv2d(d0, self.gf)#, bn=False)
         d2 = conv2d(d1, self.gf*2)
         #d3 = conv2d(d2, self.gf*4)
         #u5 = deconv2d(d3, d2, self.gf*2)
         u6 = deconv2d(d2, d1, self.gf)
 
         u7 = UpSampling2D(size=2)(u6)
-        output_img = Conv2D(self.channels, kernel_size=4, strides=1, padding='same', activation='tanh')(u7)
+        #u8 = Conv2D(self.gf, kernel_size=4, strides=1, padding='same', activation='relu')(u7)
+        #u9 = BatchNormalization(momentum = 0.8)(u8)
+        u10 = Concatenate()([u7, d0])
+        output_img = Conv2D(self.channels, kernel_size=5, strides=1, padding='same', activation='tanh')(u10)
 
         return Model(d0, output_img)
 
@@ -129,7 +132,7 @@ class GAN():
         d4 = d_layer(d3, self.df*8)
         #d5 = d_layer(d4, self.df*16)
 
-        validity = Conv2D(1, kernel_size=4, strides=1, padding='same')(d4)
+        validity = Conv2D(1, kernel_size=5, strides=1, padding='same')(d4)
 
         return Model([img_A, img_B], validity)
 
@@ -150,6 +153,7 @@ class GAN():
 
                 # Condition on B and generate a translated version
                 fake_A = self.generator.predict(imgs_B)
+
                 # Train the discriminators (original images = real / generated = Fake)
                 d_loss_real = self.discriminator.train_on_batch([imgs_A, imgs_B], valid)
                 d_loss_fake = self.discriminator.train_on_batch([fake_A, imgs_B], fake)
@@ -192,7 +196,7 @@ class GAN():
         cnt = 0
         for i in range(r):
             for j in range(c):
-                axs[i,j].imshow(gen_imgs[cnt])
+                axs[i,j].imshow(gen_imgs[cnt][:,:,:3])
                 axs[i, j].set_title(titles[i])
                 axs[i,j].axis('off')
                 cnt += 1
@@ -209,6 +213,6 @@ class GAN():
 
 if __name__ == '__main__':
     gan = GAN()
-    gan.train(epochs=50, batch_size=10, sample_interval=300)
+    gan.train(epochs=30, batch_size=5, sample_interval=300)
     gan.save_model()
 

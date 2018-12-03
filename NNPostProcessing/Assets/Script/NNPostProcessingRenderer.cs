@@ -19,9 +19,10 @@ public class NNPostProcessingRenderer : PostProcessEffectRenderer<NNPostProcessi
     {
         if (Application.isPlaying)
         {
+
             var cmd = context.command;
             cmd.BeginSample("NNPP");
-            model.Setup(cmd, context.source, context.screenHeight, context.screenWidth);
+            model.Setup(cmd, context.source, BuiltinRenderTextureType.ResolvedDepth, context.screenHeight, context.screenWidth);
             var dst = model.Predict();
             cmd.BlitFullscreenTriangle(dst, context.destination);
             cmd.EndSample("NNPP");

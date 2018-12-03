@@ -12,8 +12,38 @@ MonoBehaviour:
   m_Name: postprocessing
   m_EditorClassIdentifier: 
   settings:
-  - {fileID: 114663251783746142}
+  - {fileID: 114385247725024226}
 --- !u!114 &114336400580798816
+MonoBehaviour:
+  m_ObjectHideFlags: 3
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 0}
+  m_Name: NNPostProcessingEffect
+  m_EditorClassIdentifier: Assembly-CSharp::NNPostProcessingEffect
+  active: 1
+  enabled:
+    overrideState: 1
+    value: 1
+--- !u!114 &114383260415676282
+MonoBehaviour:
+  m_ObjectHideFlags: 3
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 0}
+  m_Name: NNPostProcessingEffect
+  m_EditorClassIdentifier: Assembly-CSharp::NNPostProcessingEffect
+  active: 1
+  enabled:
+    overrideState: 1
+    value: 1
+--- !u!114 &114385247725024226
 MonoBehaviour:
   m_ObjectHideFlags: 3
   m_CorrespondingSourceObject: {fileID: 0}

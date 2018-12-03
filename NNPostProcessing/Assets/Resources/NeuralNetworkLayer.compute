@@ -1,13 +1,20 @@
-﻿#pragma kernel Conv2D
-#pragma kernel LeakyReLU
-#pragma kernel BatchNormalization
-#pragma kernel InputLayer
-#pragma kernel OutputLayer
-#pragma kernel UpSampling2D
-#pragma kernel ReLU
-#pragma kernel Tanh
+﻿#pragma kernel LeakyReLU THREADS=32
+#pragma kernel BatchNormalization THREADS=32 
+#pragma kernel InputLayer THREADS=32
+#pragma kernel OutputLayer  THREADS=32
+#pragma kernel UpSampling2D THREADS=32
+#pragma kernel ReLU THREADS=32
+#pragma kernel Tanh THREADS=32 
+#pragma kernel Concatenate THREADS=32
+#pragma kernel Conv2D_8 THREADS=8
+#pragma kernel Conv2D_11 THREADS=11
+#pragma kernel Conv2D_16 THREADS=16
+#pragma kernel Conv2D_19 THREADS=19
+#pragma kernel Conv2D_32 THREADS=32
+#pragma kernel Conv2D_64 THREADS=64
 
 Texture2D<float3> InputImage;
+Texture2D<float3> InputImage1;
 RWTexture2D<float3> OutputImage;
 
 Buffer<float> LayerInput0;
@@ -19,6 +26,7 @@ uint2 Stride;
 uint3 InputShape;//n_Hi, n_Wi, n_Ci
 uint3 OutputShape;//n_Ho, n_Wo, n_Co=n_Ck
 uint3 InputShapeIdMultiplier;
+uint3 InputShapeIdMultiplier1;
 uint3 OutputShapeIdMultiplier;
 uint4 WeightsShapeIdMultiplier;
 uint2 Size;
@@ -34,11 +42,12 @@ float Alpha;
 #define n_Ho OutputShape.x
 #define n_Co OutputShape.z
 
-groupshared float cache[32];
+groupshared float cache[THREADS*8];
 
-//we assume feature < 32 for each conv layer
-[numthreads(1,1,32)]
-void Conv2D(uint3 id : SV_DispatchThreadID)
+[numthreads(8, 1, THREADS)]
+#define KERNEL_NAME(x, y) x##_##y
+void KERNEL_NAME(Conv2D, THREADS)
+(uint3 id : SV_DispatchThreadID, uint3 groupid : SV_GroupThreadID)
 {
 	//id: outputshape
 	uint2 InputId = id.xy * Stride;
@@ -57,10 +66,10 @@ void Conv2D(uint3 id : SV_DispatchThreadID)
 
 			if (id.z < n_Ci) {
 				if (any(input_id.xy < 0) || any(input_id.xy > InputShape.yx)) {
-					cache[id.z] = 0;
+					cache[groupid.x * THREADS + id.z] = 0;
 				}
 				else {
-					cache[id.z] = LayerInput0[dot(input_id.yxz, InputShapeIdMultiplier)];
+					cache[groupid.x * THREADS + id.z] = LayerInput0[dot(input_id.yxz, InputShapeIdMultiplier)];
 				}
 			}
 			
@@ -68,7 +77,7 @@ void Conv2D(uint3 id : SV_DispatchThreadID)
 			
 			//each layer input, n_Ci = kernel z
 			for (uint w = 0; w < n_Ci; w++) {
-				conv += cache[w] * Weights[dot(uint4(q, p, w, id.z), WeightsShapeIdMultiplier)];
+				conv += cache[groupid.x * THREADS + w] * Weights[dot(uint4(q, p, w, id.z), WeightsShapeIdMultiplier)];
 			}
 
 			GroupMemoryBarrierWithGroupSync();
@@ -93,6 +102,17 @@ void Tanh(uint3 id : SV_DispatchThreadID)
 void LeakyReLU(uint3 id : SV_DispatchThreadID)
 {
 	LayerOutput[id.x] = LayerInput0[id.x] > 0 ? LayerInput0[id.x] : LayerInput0[id.x] * Alpha;
+}
+
+[numthreads(8, 8, 1)]
+void Concatenate(uint3 id : SV_DispatchThreadID)
+{
+	if (id.z < InputShape.z) {
+		LayerOutput[dot(id, OutputShapeIdMultiplier)] = LayerInput0[dot(id, InputShapeIdMultiplier)];
+	}
+	else {
+		LayerOutput[dot(id, OutputShapeIdMultiplier)] = LayerInput1[dot(uint3(id.xy, id.z - InputShape.z), InputShapeIdMultiplier1)];
+	}
 }
 
 //momentum trained, take parameter as population mean/std is ok
@@ -129,9 +149,11 @@ void InputLayer(uint3 id : SV_DispatchThreadID)
 {
 	uint2 remapid = uint2(id.y, InputShape.x - 1 - id.x);
 	float3 remap = InputImage[remapid.xy] * 2.0f - 1.0f;
+	float3 remap_dep = InputImage1[remapid.xy] * 2.0f - 1.0f;
 	LayerOutput[dot(uint3(id.xy, 0), InputShapeIdMultiplier)] = remap.x;
 	LayerOutput[dot(uint3(id.xy, 1), InputShapeIdMultiplier)] = remap.y;
 	LayerOutput[dot(uint3(id.xy, 2), InputShapeIdMultiplier)] = remap.z;
+	LayerOutput[dot(uint3(id.xy, 3), InputShapeIdMultiplier)] = remap_dep.x;
 }
 
 [numthreads(8, 8, 1)]

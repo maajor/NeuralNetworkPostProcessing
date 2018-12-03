@@ -1,14 +1,31 @@
-import scipy.misc
+import scipy
 from glob import glob
 import numpy as np
 import matplotlib.pyplot as plt
 import datetime
-import imageio
+from PIL import Image
 
-class DataLoader():
-    def __init__(self, dataset_name, img_res=(128, 128)):
+class DataPrepare():
+    def __init__(self, dataset_name, img_res=(128, 128), datanum = 100):
         self.dataset_name = dataset_name
         self.img_res = img_res
+        self.datanum = datanum
+        self.combine_data()
+
+    def combine_data(self):
+        folder = "./datasets/" + self.dataset_name + "/source/"
+        for i in range(0, self.datanum):
+            colorpath = folder + 'image_color_%04d' % i + ".png"
+            depth = folder + 'image_depth_%04d' % i + ".png"
+            target = folder + 'image_out_%04d' % i + ".png"
+            images = map(Image.open, [colorpath, depth, target])
+            new_im = Image.new('RGB', (self.img_res[0] * 3, self.img_res[1]))
+            x_offset = 0
+            for im in images:
+                new_im.paste(im, (x_offset,0))
+                x_offset += self.img_res[0]
+            outpath = "./datasets/" + self.dataset_name + "/train/" + 'image_%04d' % i + ".png"
+            new_im.save(outpath)
 
     def load_data(self, batch_size=1, is_testing=False):
         data_type = "train" if not is_testing else "test"
@@ -23,15 +40,8 @@ class DataLoader():
             img = self.imread(img_path)
 
             h, w, _ = img.shape
-            _w = int(w/3)
-            img_color, img_dep, img_target = img[:, :_w, :], img[:, _w:2*_w, :],  img[:, 2*_w:, :]
-            img_src = np.zeros([h,_w,4])
-            img_dst = np.zeros([h,_w,4])
-            img_src[:,:,:3] = img_color
-            img_src[:,:,3]  = img_dep[:,:,1]
-            img_dst[:,:,:3] = img_target
-            img_dst[:,:,3]  = img_dep[:,:,1]
-            img_B, img_A = img_src, img_dst
+            _w = int(w/2)
+            img_B, img_A = img[:, :_w, :], img[:, _w:, :]
 
             img_A = scipy.misc.imresize(img_A, self.img_res)
             img_B = scipy.misc.imresize(img_B, self.img_res)
@@ -61,16 +71,9 @@ class DataLoader():
             for img in batch:
                 img = self.imread(img)
                 h, w, _ = img.shape
-
-                _w = int(w/3)
-                img_color, img_dep, img_target = img[:, :_w, :], img[:, _w:2*_w, :],  img[:, 2*_w:, :]
-                img_src = np.zeros([h,_w,4])
-                img_dst = np.zeros([h,_w,4])
-                img_src[:,:,:3] = img_color
-                img_src[:,:,3]  = img_dep[:,:,1]
-                img_dst[:,:,:3] = img_target
-                img_dst[:,:,3]  = img_dep[:,:,1]
-                img_B, img_A = img_src, img_dst
+                half_w = int(w/2)
+                img_B = img[:, :half_w, :]
+                img_A = img[:, half_w:, :]
 
                 img_A = scipy.misc.imresize(img_A, self.img_res)
                 img_B = scipy.misc.imresize(img_B, self.img_res)
@@ -89,14 +92,7 @@ class DataLoader():
 
 
     def imread(self, path):
-        return imageio.imread(path).astype(np.float)
-
+        return scipy.misc.imread(path, mode='RGB').astype(np.float)
 
 if __name__ == '__main__':
-    dataloader = DataLoader("terrain", (512,512))
-    iga, igb = dataloader.load_data()
-    print(igb.shape)
-
-    fig, axs = plt.subplots(1,1, figsize=(15,15))
-    axs.imshow(igb[0,:,:,3])
-    fig.savefig("test.png")
+    DataPrepare("terrain", (512,512), 301)

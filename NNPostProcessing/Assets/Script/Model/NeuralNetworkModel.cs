@@ -39,7 +39,7 @@ public class NeuralNetworkModel
             {
                 case "InputLayer":
                     Input = new InputLayer(layer.config);
-                    //Layers.Add(new InputLayer(layer.config));
+                    Layers.Add(Input);
                     break;
                 case "Conv2D":
                     Layers.Add(new Conv2D(layer.config));
@@ -62,17 +62,14 @@ public class NeuralNetworkModel
                     Layers.Add(new UpSampling2D(layer.config));
                     break;
                 case "Concatenate":
-                    Layers.Add(new Concatenate(layer.config));
+                    var thislayer = new Concatenate(layer.config);
+                    string alternativeLayerName = layer.inbound_nodes[0][1][0] as string;
+                    thislayer.AlternativeInputId = Layers.FindIndex(ly => string.Compare(ly.Name, alternativeLayerName) == 0);
+                    Layers.Add(thislayer);
                     break;
-            }
-            if (layer.inbound_nodes.Count > 0)
-            {
-                List<string> inputs = layer.inbound_nodes[0].ConvertAll<string>(objs =>objs[0].ToString());
-                inputNodes.Add(layer.name, inputs);
             }
         }
         Output = new OutputLayer(null);
-        Output.InputLayersId = new List<int>(){ Layers.Count - 1};
     }
 
     private void LoadWeight(List<KerasLayerWeightJson> weights)
@@ -104,17 +101,26 @@ public class NeuralNetworkModel
 
     public void Init(int height, int width)
     {
-        Input.Init(new int4(height, width, 3, 0));
-        Layers[0].Init(new int4(height, width, 3, 0));
+        Input.Init(new int4(height, width, 4, 0));
+        //Layers[0].Init(new int4(height, width, 3, 0));
         for (int i = 1; i < Layers.Count; i++)
         {
-            Layers[i].Init(Layers[i - 1].OutputShape);
+            if (Layers[i] is Concatenate)
+            {
+                int4 input1 = Layers[i - 1].OutputShape;
+                int4 input2 = Layers[(Layers[i] as Concatenate).AlternativeInputId].OutputShape;
+                Layers[i].Init(new int4(input1.x, input1.y, input1.z + input2.z, 1));
+            }
+            else
+            {
+                Layers[i].Init(Layers[i - 1].OutputShape);
+            }
         }
         Output.Init(Layers[Layers.Count - 1].OutputShape);
     }
     private int _height, _width;
 
-    public void Setup(CommandBuffer cmd, RenderTargetIdentifier src, int height, int width)
+    public void Setup(CommandBuffer cmd, RenderTargetIdentifier src, RenderTargetIdentifier dep, int height, int width)
     {
         if (_height != height || _width != width)
         {
@@ -124,6 +130,7 @@ public class NeuralNetworkModel
         }
 
         Input.src = src;
+        Input.dep = dep;
 
         cb = cmd;
     }
@@ -131,10 +138,20 @@ public class NeuralNetworkModel
     public RenderTexture Predict()
     {
         Input.Run(null, cb);
-        Layers[0].Run(new object[1] { Input.Output }, cb);
         for (int i = 1; i < Layers.Count; i++)
         {
-            Layers[i].Run(new object[1] { Layers[i - 1].Output }, cb);
+            if (Layers[i] is Concatenate)
+            {
+                Layers[i].Run(new object[2]
+                {
+                    Layers[i - 1].Output,
+                    Layers[(Layers[i] as Concatenate).AlternativeInputId].Output,
+                }, cb);
+            }
+            else
+            {
+                Layers[i].Run(new object[1] {Layers[i - 1].Output}, cb);
+            }
         }
         Output.Run(new object[1] { Layers[Layers.Count - 1].Output }, cb);
         return Output.outputTex;
@@ -155,7 +172,7 @@ public class NeuralNetworkModel
 public class NeuralNetworkLayer
 {
     public string Name;
-    public List<int> InputLayersId;
+    //public List<int> InputId;
     public int4 InputShape;
     public int4 OutputShape;
     public int4 WeightShape;
@@ -193,6 +210,7 @@ public class InputLayer: NeuralNetworkLayer
 {
     private ComputeBuffer outputbuffer;
     public RenderTargetIdentifier src;
+    public RenderTargetIdentifier dep;
     public InputLayer(KerasLayerConfigJson config) : base(config)
     {
         KernelId = NeuralNetworkComputeShader.Instance.Kernel("InputLayer");
@@ -201,6 +219,7 @@ public class InputLayer: NeuralNetworkLayer
     public override void Run(object[] input, CommandBuffer cmd)
     {
         cmd.SetComputeTextureParam(NeuralNetworkComputeShader.Instance.Shader, KernelId, "InputImage", src);
+        cmd.SetComputeTextureParam(NeuralNetworkComputeShader.Instance.Shader, KernelId, "InputImage1", dep);
         cmd.SetComputeBufferParam(NeuralNetworkComputeShader.Instance.Shader, KernelId, "LayerOutput", outputbuffer);
         cmd.SetComputeIntParams(NeuralNetworkComputeShader.Instance.Shader, "InputShape", new int[3]
         {
@@ -243,7 +262,7 @@ public class Conv2D : NeuralNetworkLayer
         Filters = config.filters;
         KernalSize = new int2(config.kernel_size[0], config.kernel_size[1]);
         Stride = new int2(config.strides[0], config.strides[1]);
-        KernelId = NeuralNetworkComputeShader.Instance.Kernel("Conv2D");
+        KernelId = NeuralNetworkComputeShader.Instance.KernelConv2D(32);
     }
 
     public override void LoadWeight(KerasLayerWeightJson[] weightsKernel)
@@ -286,6 +305,8 @@ public class Conv2D : NeuralNetworkLayer
         OutputShape.z = Filters;
         outputbuffer?.Release();
         outputbuffer = new ComputeBuffer(OutputShape.x * OutputShape.y * OutputShape.z, sizeof(float));
+        int maxfilter = Mathf.Max(inputShape.z, Filters);
+        KernelId = NeuralNetworkComputeShader.Instance.KernelConv2D(maxfilter);
         Output = outputbuffer;
     }
 
@@ -343,9 +364,9 @@ public class Conv2D : NeuralNetworkLayer
             Stride.x,
             Stride.y
         });
-        int group = Mathf.CeilToInt(OutputShape.z / 32.0f);
+        //int group = Mathf.CeilToInt(OutputShape.z / 32.0f);
 
-        cmd.DispatchCompute(NeuralNetworkComputeShader.Instance.Shader, KernelId, OutputShape.x, OutputShape.y, group);
+        cmd.DispatchCompute(NeuralNetworkComputeShader.Instance.Shader, KernelId, OutputShape.x / 8, OutputShape.y , 1);
     }
 }
 
@@ -487,8 +508,66 @@ public class BatchNormalization : NeuralNetworkLayer
 
 public class Concatenate : NeuralNetworkLayer
 {
+    private ComputeBuffer outputbuffer;
+    public int AlternativeInputId;
     public Concatenate(KerasLayerConfigJson config) : base(config)
     {
+        KernelId = NeuralNetworkComputeShader.Instance.Kernel("Concatenate");
+    }
+
+    public override void Init(int4 inputShape)
+    {
+        base.Init(inputShape);
+        outputbuffer?.Release();
+        outputbuffer = new ComputeBuffer(OutputShape.x * OutputShape.y * OutputShape.z, sizeof(float));
+        Output = outputbuffer;
+    }
+
+    public override void Release()
+    {
+        outputbuffer?.Release();
+    }
+
+    public override void Run(object[] input, CommandBuffer cmd)
+    {
+        var input0 = input[0] as ComputeBuffer;
+        int inputfilters0 = input0.count / (OutputShape.x * OutputShape.y);
+        int inputfilters1 = OutputShape.z - inputfilters0;
+        cmd.SetComputeBufferParam(NeuralNetworkComputeShader.Instance.Shader, KernelId, "LayerInput0", input0);
+        cmd.SetComputeBufferParam(NeuralNetworkComputeShader.Instance.Shader, KernelId, "LayerInput1", input[1] as ComputeBuffer);
+        cmd.SetComputeBufferParam(NeuralNetworkComputeShader.Instance.Shader, KernelId, "LayerOutput", outputbuffer);
+        cmd.SetComputeIntParams(NeuralNetworkComputeShader.Instance.Shader, "InputShape", new int[3]
+        {
+            InputShape.x,
+            InputShape.y,
+            inputfilters0
+        });
+        cmd.SetComputeIntParams(NeuralNetworkComputeShader.Instance.Shader, "InputShapeIdMultiplier", new int[3]
+        {
+            InputShape.y * inputfilters0,
+            inputfilters0,
+            1
+        });
+        cmd.SetComputeIntParams(NeuralNetworkComputeShader.Instance.Shader, "InputShapeIdMultiplier1", new int[3]
+        {
+            InputShape.y * inputfilters1,
+            inputfilters1,
+            1
+        });
+        cmd.SetComputeIntParams(NeuralNetworkComputeShader.Instance.Shader, "OutputShape", new int[3]
+        {
+            OutputShape.x,
+            OutputShape.y,
+            OutputShape.z
+        });
+        cmd.SetComputeIntParams(NeuralNetworkComputeShader.Instance.Shader, "OutputShapeIdMultiplier", new int[3]
+        {
+            OutputShape.y * OutputShape.z,
+            OutputShape.z,
+            1
+        });
+        cmd.DispatchCompute(NeuralNetworkComputeShader.Instance.Shader, KernelId, OutputShape.x / 8, OutputShape.y / 8, OutputShape.z);
+        //Output = input0;
     }
 }
 
@@ -598,43 +677,64 @@ public class OutputLayer : NeuralNetworkLayer
 public class NeuralNetworkComputeShader
 {
     private static NeuralNetworkComputeShader _instance;
+
     public static NeuralNetworkComputeShader Instance
     {
-        get {
+        get
+        {
             if (_instance == null)
             {
                 _instance = new NeuralNetworkComputeShader();
                 _instance.Init();
             }
+
             return _instance;
         }
 
     }
 
+    private int[] Conv2DKernelLayers = new int[6] {8,11,16,19,32,64};
+    private int[] Conv2DKernels = new int[6];
+
     public ComputeShader Shader;
     private string shaderpath = "NeuralNetworkLayer";
-    private int Conv2DKernel, LeakyReluKernel, BatchNormalizationKernel, InputLayerKernel, 
-        OutputLayerKernel, UpSampling2DKernel, ReluKernel, TanhKernel;
+    private int LeakyReluKernel, BatchNormalizationKernel, InputLayerKernel, 
+        ConcatenateKernel, OutputLayerKernel, UpSampling2DKernel, ReluKernel, TanhKernel;
 
     private void Init()
     {
+        Conv2DKernels = new int[6];
         Shader = Resources.Load<ComputeShader>(shaderpath);
-        Conv2DKernel = Shader.FindKernel("Conv2D");
+        for (int i = 0; i < Conv2DKernelLayers.Length; i++)
+        {
+            Conv2DKernels[i] = Shader.FindKernel(string.Format("Conv2D_{0}", Conv2DKernelLayers[i]));
+        }
         LeakyReluKernel = Shader.FindKernel("LeakyReLU");
         BatchNormalizationKernel = Shader.FindKernel("BatchNormalization");
         InputLayerKernel = Shader.FindKernel("InputLayer");
         OutputLayerKernel = Shader.FindKernel("OutputLayer");
         UpSampling2DKernel = Shader.FindKernel("UpSampling2D");
+        ConcatenateKernel = Shader.FindKernel("Concatenate");
         ReluKernel = Shader.FindKernel("ReLU");
         TanhKernel = Shader.FindKernel("Tanh");
+    }
+
+    public int KernelConv2D(int channel)
+    {
+        for (int i = 0; i < Conv2DKernelLayers.Length; i++)
+        {
+            if (channel <= Conv2DKernelLayers[i])
+            {
+                return Conv2DKernels[i];
+            }
+        }
+        return -1;
     }
 
     public int Kernel(string name)
     {
         switch (name)
         {
-            case ("Conv2D"):
-                return Conv2DKernel;
             case ("LeakyReLU"):
                 return LeakyReluKernel;
             case ("BatchNormalization"):
@@ -649,6 +749,8 @@ public class NeuralNetworkComputeShader
                 return ReluKernel;
             case ("Tanh"):
                 return TanhKernel;
+            case ("Concatenate"):
+                return ConcatenateKernel;
             default:
                 return -1;
         }
