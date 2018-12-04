@@ -7,9 +7,9 @@
 #pragma kernel Tanh THREADS=32 
 #pragma kernel Concatenate THREADS=32
 #pragma kernel Conv2D_8 THREADS=8
-#pragma kernel Conv2D_11 THREADS=11
+#pragma kernel Conv2D_12 THREADS=12
 #pragma kernel Conv2D_16 THREADS=16
-#pragma kernel Conv2D_19 THREADS=19
+#pragma kernel Conv2D_20 THREADS=20
 #pragma kernel Conv2D_32 THREADS=32
 #pragma kernel Conv2D_64 THREADS=64
 

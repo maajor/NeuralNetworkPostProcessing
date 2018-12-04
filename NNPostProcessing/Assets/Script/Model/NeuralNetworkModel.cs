@@ -693,7 +693,7 @@ public class NeuralNetworkComputeShader
 
     }
 
-    private int[] Conv2DKernelLayers = new int[6] {8,11,16,19,32,64};
+    private int[] Conv2DKernelLayers = new int[6] {8,12,16,20,32,64};
     private int[] Conv2DKernels = new int[6];
 
     public ComputeShader Shader;
