@@ -271,7 +271,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   tr: {fileID: 11400000, guid: 741c33299e5fa304b8f5dfdc27942f99, type: 2}
-  FrameInterval: 5
+  FrameInterval: 20
 --- !u!1 &170076733
 GameObject:
   m_ObjectHideFlags: 0

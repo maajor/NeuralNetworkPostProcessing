@@ -10,6 +10,7 @@ NNTrainer/debug
 NNTrainer/datasets/terrain
 NNTrainer/datasets/cityscapes
 NNTrainer/images/terrain
+NNTrainer/trained_test
 Assets/AssetStoreTools*
 
 # Visual Studio cache directory

@@ -4,45 +4,43 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.PostProcessing;
 
-[System.Serializable]
-[PostProcess(typeof(NNPostProcessingRenderer), PostProcessEvent.BeforeStack, "NNPP")]
-public sealed class NNPostProcessingEffect : PostProcessEffectSettings
+namespace NNPP
 {
-}
-
-public class NNPostProcessingRenderer : PostProcessEffectRenderer<NNPostProcessingEffect>
-{
-
-    private NeuralNetworkModel model;
-
-    public override void Render(PostProcessRenderContext context)
+    [System.Serializable]
+    public class NNPostProcessingRenderer : PostProcessEffectRenderer<NNPostProcessingEffect>
     {
-        if (Application.isPlaying)
+
+        private NNModel model;
+
+        public override void Render(PostProcessRenderContext context)
         {
+            if (Application.isPlaying)
+            {
 
-            var cmd = context.command;
-            cmd.BeginSample("NNPP");
-            model.Setup(cmd, context.source, BuiltinRenderTextureType.ResolvedDepth, context.screenHeight, context.screenWidth);
-            var dst = model.Predict();
-            cmd.BlitFullscreenTriangle(dst, context.destination);
-            cmd.EndSample("NNPP");
+                var cmd = context.command;
+                cmd.BeginSample("NNPP");
+                model.Setup(cmd, context.source, BuiltinRenderTextureType.ResolvedDepth, context.screenHeight, context.screenWidth);
+                var dst = model.Predict();
+                cmd.BlitFullscreenTriangle(dst, context.destination);
+                cmd.EndSample("NNPP");
+            }
+            else
+            {
+                context.command.BlitFullscreenTriangle(context.source, context.destination);
+            }
         }
-        else
+
+        public override void Init()
         {
-            context.command.BlitFullscreenTriangle(context.source, context.destination);
+            base.Init();
+            model = new NNModel();
+            model.Load();
         }
-    }
 
-    public override void Init()
-    {
-        base.Init();
-        model = new NeuralNetworkModel();
-        model.Load();
-    }
-
-    public override void Release()
-    {
-        base.Release();
-        model.Release();
+        public override void Release()
+        {
+            base.Release();
+            model.Release();
+        }
     }
 }
