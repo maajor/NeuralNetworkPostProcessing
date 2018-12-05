@@ -34,8 +34,8 @@ class GAN():
         self.disc_patch = (patch, patch, 1)
 
         # Number of filters in the first layer of G and D
-        self.gf = 8
-        self.df = 8
+        self.gf = 16
+        self.df = 16
 
         optimizer = Adam(0.0002, 0.5)
 
