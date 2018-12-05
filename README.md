@@ -1,7 +1,9 @@
 Neural Network Post Processing
 ========
 
-Post Processing for Unity using Convolution Neural Network. CNN Model trained with pix2pix/GAN
+Post Processing for Unity using Convolution Neural Network. CNN Model trained with pix2pix/GAN.  
+You can create your style offline and train the network with your own data, making your own NNPP!
+
 ![model](Imgs/99_0.png)  
 [![NNPP](http://img.youtube.com/vi/qYcST5reOzY/0.jpg)](http://www.youtube.com/watch?v=qYcST5reOzY "NNPP")
 
