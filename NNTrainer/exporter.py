@@ -3,6 +3,13 @@ from keras.utils import plot_model
 import matplotlib.pyplot as plt
 from data_loader import DataLoader
 import json
+import argparse
+
+parser = argparse.ArgumentParser(description='')
+parser.add_argument('--dataset_name', dest='dataset_name', default='terrain', help='name of the dataset')
+parser.add_argument('--modelpath', dest='modelpath', default='model', help='name of model')
+args = parser.parse_args()
+
 
 class Exporter():
 
@@ -38,4 +45,4 @@ class Exporter():
 		plot_model(self.loaded_model, to_file='model/model_architecture.png', show_shapes=True)
 
 if __name__ == '__main__':
-	Exporter()
+	Exporter(path = args.modelpath, dataset_name = args.dataset_name)

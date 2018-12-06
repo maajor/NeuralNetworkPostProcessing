@@ -3,6 +3,12 @@ from keras.utils import plot_model
 import matplotlib.pyplot as plt
 from data_loader import DataLoader
 import json
+import argparse
+
+parser = argparse.ArgumentParser(description='')
+parser.add_argument('--dataset_name', dest='dataset_name', default='terrain', help='name of the dataset')
+parser.add_argument('--modelpath', dest='modelpath', default='model', help='name of model')
+args = parser.parse_args()
 
 class Debugger():
 
@@ -49,4 +55,4 @@ class Debugger():
 
 
 if __name__ == '__main__':
-	Debugger()
+	Debugger(path = args.modelpath, dataset_name = args.dataset_name)

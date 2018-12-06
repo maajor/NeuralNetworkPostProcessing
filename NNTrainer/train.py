@@ -14,9 +14,14 @@ import sys
 from data_loader import DataLoader
 import numpy as np
 import os
+import argparse
+
+parser = argparse.ArgumentParser(description='')
+parser.add_argument('--dataset_name', dest='dataset_name', default='terrain', help='name of the dataset')
+args = parser.parse_args()
 
 class GAN():
-    def __init__(self):
+    def __init__(self, dataset_name = 'terrain'):
         # Input shape
         self.img_rows = 512
         self.img_cols = 512
@@ -24,7 +29,7 @@ class GAN():
         self.img_shape = (self.img_rows, self.img_cols, self.channels)
 
         # Configure data loader
-        self.dataset_name = 'terrain'
+        self.dataset_name = dataset_name
         self.data_loader = DataLoader(dataset_name=self.dataset_name,
                                       img_res=(self.img_rows, self.img_cols))
 
@@ -214,7 +219,7 @@ class GAN():
 
 
 if __name__ == '__main__':
-    gan = GAN()
-    gan.train(epochs=100, batch_size=3, sample_interval=300)
+    gan = GAN(dataset_name=args.dataset_name)
+    gan.train(epochs=200, batch_size=3, sample_interval=300)
     gan.save_model()
 
