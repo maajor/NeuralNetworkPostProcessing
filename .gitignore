@@ -6,8 +6,12 @@ NNPostProcessing/[Bb]uilds/
 NNPostProcessing/Recordings
 NNPostProcessing/Assets/Unity Recorder
 NNTrainer/__pycache__
+NNTrainer/src/__pycache__
 NNTrainer/debug
+NNTrainer/model
 NNTrainer/datasets/terrain
+NNTrainer/datasets/coco2017
+NNTrainer/datasets/output
 NNTrainer/datasets/cityscapes
 NNTrainer/images/terrain
 NNTrainer/trained_test

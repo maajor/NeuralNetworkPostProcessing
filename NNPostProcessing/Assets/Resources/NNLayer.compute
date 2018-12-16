@@ -1,11 +1,12 @@
-﻿#pragma kernel LeakyReLU THREADS=32
-#pragma kernel BatchNormalization THREADS=32 
-#pragma kernel InputLayer THREADS=32
-#pragma kernel OutputLayer  THREADS=32
-#pragma kernel UpSampling2D THREADS=32
-#pragma kernel ReLU THREADS=32
-#pragma kernel Tanh THREADS=32 
-#pragma kernel Concatenate THREADS=32
+﻿#pragma kernel LeakyReLU THREADS=1
+#pragma kernel BatchNormalization THREADS=1 
+#pragma kernel InputLayer THREADS=1
+#pragma kernel OutputLayer  THREADS=1
+#pragma kernel UpSampling2D THREADS=1
+#pragma kernel ReLU THREADS=1
+#pragma kernel Tanh THREADS=1 
+#pragma kernel Add THREADS=1 
+#pragma kernel Concatenate THREADS=1
 #pragma kernel Conv2D_8 THREADS=8
 #pragma kernel Conv2D_12 THREADS=12
 #pragma kernel Conv2D_16 THREADS=16
@@ -13,24 +14,24 @@
 #pragma kernel Conv2D_32 THREADS=32
 #pragma kernel Conv2D_64 THREADS=64
 
-Texture2D<float3> InputImage;
-Texture2D<float3> InputImage1;
-RWTexture2D<float3> OutputImage;
+Texture2D<half3> InputImage;
+Texture2D<half> InputImage1;
+RWTexture2D<half3> OutputImage;
 
-Buffer<float> LayerInput0;
-Buffer<float> LayerInput1;
-RWBuffer<float> LayerOutput;
-Buffer<float> Weights;
-uint4 WeightsShape;//for conv2d: n_Hk, n_Wk, n_Ci, n_Ck; for other: size, 0, 0, 0
-uint2 Stride;
-uint3 InputShape;//n_Hi, n_Wi, n_Ci
-uint3 OutputShape;//n_Ho, n_Wo, n_Co=n_Ck
-uint3 InputShapeIdMultiplier;
-uint3 InputShapeIdMultiplier1;
-uint3 OutputShapeIdMultiplier;
-uint4 WeightsShapeIdMultiplier;
-uint2 Size;
-float Alpha;
+Buffer<half> LayerInput0;
+Buffer<half> LayerInput1;
+RWBuffer<half> LayerOutput;
+Buffer<half> Weights;
+uniform uint4 WeightsShape;//for conv2d: n_Hk, n_Wk, n_Ci, n_Ck; for other: size, 0, 0, 0
+uniform uint2 Stride;
+uniform uint3 InputShape;//n_Hi, n_Wi, n_Ci
+uniform uint3 OutputShape;//n_Ho, n_Wo, n_Co=n_Ck
+uniform uint3 InputShapeIdMultiplier;
+uniform uint3 InputShapeIdMultiplier1;
+uniform uint3 OutputShapeIdMultiplier;
+uniform uint4 WeightsShapeIdMultiplier;
+uniform uint2 Size;
+uniform half Alpha;
 
 #define n_Wk WeightsShape.y
 #define n_Hk WeightsShape.x
@@ -42,7 +43,7 @@ float Alpha;
 #define n_Ho OutputShape.x
 #define n_Co OutputShape.z
 
-groupshared float cache[THREADS*8];
+groupshared half cache[THREADS*8];
 
 [numthreads(8, 1, THREADS)]
 #define KERNEL_NAME(x, y) x##_##y
@@ -52,8 +53,8 @@ void KERNEL_NAME(Conv2D, THREADS)
 	//id: outputshape
 	uint2 InputId = id.xy * Stride;
 
-	float bias = Weights[n_Wk * n_Hk * n_Ci * n_Ck + id.z];
-	float conv = 0;
+	half bias = Weights[n_Wk * n_Hk * n_Ci * n_Ck + id.z];
+	half conv = 0;
 
 	uint3 offset = uint3((n_Wk - 1) / 2, (n_Hk - 1) / 2, 0);
 	
@@ -115,14 +116,20 @@ void Concatenate(uint3 id : SV_DispatchThreadID)
 	}
 }
 
+[numthreads(8, 8, 1)]
+void Add(uint3 id : SV_DispatchThreadID)
+{
+	LayerOutput[dot(id, OutputShapeIdMultiplier)] = LayerInput0[dot(id, InputShapeIdMultiplier)] + LayerInput0[dot(id, InputShapeIdMultiplier)];
+}
+
 //momentum trained, take parameter as population mean/std is ok
 [numthreads(32, 1, 1)]
 void BatchNormalization(const uint3 id : SV_DispatchThreadID)
 {
-	float gamma		= Weights[id.y * 4];
-	float beta		= Weights[id.y * 4 + 1];
-	float mean	= Weights[id.y * 4 + 2];
-	float std	= Weights[id.y * 4 + 3];
+	half gamma		= Weights[id.y * 4];
+	half beta		= Weights[id.y * 4 + 1];
+	half mean	= Weights[id.y * 4 + 2];
+	half std	= Weights[id.y * 4 + 3];
 
 	const uint stride = n_Ci;
 
@@ -133,10 +140,10 @@ void BatchNormalization(const uint3 id : SV_DispatchThreadID)
 [numthreads(8, 8, 1)]
 void UpSampling2D(uint3 id : SV_DispatchThreadID)
 {
-	float2 inputid = (float2)id.xy / (float2)Size.xy;
+	half2 inputid = (half2)id.xy / (half2)Size.xy;
 	uint3 floor_inputid = uint3(floor(inputid), id.z);
-	float2 frac_inputid = inputid - floor_inputid.xy;
-	float bilinear_interp =
+	half2 frac_inputid = inputid - floor_inputid.xy;
+	half bilinear_interp =
 		LayerInput0[dot(floor_inputid, InputShapeIdMultiplier)] * (1 - frac_inputid.x) * (1 - frac_inputid.y) +
 		LayerInput0[dot(floor_inputid + uint3(1, 0, 0), InputShapeIdMultiplier)] * (frac_inputid.x) * (1 - frac_inputid.y) +
 		LayerInput0[dot(floor_inputid + uint3(0, 1, 0), InputShapeIdMultiplier)] * (1 - frac_inputid.x) * (frac_inputid.y) +
@@ -148,19 +155,21 @@ void UpSampling2D(uint3 id : SV_DispatchThreadID)
 void InputLayer(uint3 id : SV_DispatchThreadID)
 {
 	uint2 remapid = uint2(id.y, InputShape.x - 1 - id.x);
-	float3 remap = InputImage[remapid.xy] * 2.0f - 1.0f;
-	float3 remap_dep = InputImage1[remapid.xy] * 2.0f - 1.0f;
+	half3 remap = InputImage[remapid.xy] * 2.0f - 1.0f;
+	if (InputShape.z == 4) {
+		half3 remap_dep = InputImage1[remapid.xy] * 2.0f - 1.0f;
+		LayerOutput[dot(uint3(id.xy, 3), InputShapeIdMultiplier)] = remap_dep.x;
+	}
 	LayerOutput[dot(uint3(id.xy, 0), InputShapeIdMultiplier)] = remap.x;
 	LayerOutput[dot(uint3(id.xy, 1), InputShapeIdMultiplier)] = remap.y;
 	LayerOutput[dot(uint3(id.xy, 2), InputShapeIdMultiplier)] = remap.z;
-	LayerOutput[dot(uint3(id.xy, 3), InputShapeIdMultiplier)] = remap_dep.x;
 }
 
 [numthreads(8, 8, 1)]
 void OutputLayer(uint3 id : SV_DispatchThreadID)
 {
 	uint2 remapid = uint2(id.y, InputShape.x - 1 - id.x);
-	OutputImage[remapid.xy] = saturate(float3(
+	OutputImage[remapid.xy] = saturate(half3(
 		LayerInput0[dot(uint3(id.xy, 0), InputShapeIdMultiplier)] * 0.5f + 0.5f,
 		LayerInput0[dot(uint3(id.xy, 1), InputShapeIdMultiplier)] * 0.5f + 0.5f,
 		LayerInput0[dot(uint3(id.xy, 2), InputShapeIdMultiplier)] * 0.5f + 0.5f));

@@ -20,10 +20,11 @@ class DataPrepare():
 
     def combine_data(self):
         folder = "./datasets/" + self.dataset_name + "/source/"
+        targetfolder = "./datasets/" + self.dataset_name + "/target/"
         for i in range(0, self.datanum):
             colorpath = folder + 'image_color_%04d' % i + ".png"
             depth = folder + 'image_depth_%04d' % i + ".png"
-            target = folder + 'image_out_%04d' % i + ".png"
+            target = targetfolder + 'image_color_%04d' % i + ".png"
             images = map(Image.open, [colorpath, depth, target])
             new_im = Image.new('RGB', (self.img_res[0] * 3, self.img_res[1]))
             x_offset = 0

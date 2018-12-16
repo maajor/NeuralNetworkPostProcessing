@@ -21,11 +21,9 @@ namespace NNPP
         private OutputLayer Output;
         private CommandBuffer cb;
 
-        public void Load(
-            string architecturePath = "Model/model_architecture",
-            string weightsPath = "Model/model_weight")
+        public void Load()
         {
-            TextAsset architexturetext = Resources.Load<TextAsset>("Model/model_terrain");
+            TextAsset architexturetext = Resources.Load<TextAsset>("Model/NNmodel");
             var modeljson = JsonConvert.DeserializeObject<KerasJson>(architexturetext.text);
             LoadModel(modeljson.model.config);
             LoadWeight(modeljson.weights);
@@ -42,6 +40,16 @@ namespace NNPP
                     case "InputLayer":
                         Input = new InputLayer(layer.config);
                         Layers.Add(Input);
+                        break;
+                    case "Activation":
+                        if (layer.config.activation == "relu")
+                        {
+                            Layers.Add(new ReLU(layer.config));
+                        }
+                        if (layer.config.activation == "tanh")
+                        {
+                            Layers.Add(new Tanh(layer.config));
+                        }
                         break;
                     case "Conv2D":
                         Layers.Add(new Conv2D(layer.config));
@@ -68,6 +76,14 @@ namespace NNPP
                         string alternativeLayerName = layer.inbound_nodes[0][1][0] as string;
                         thislayer.AlternativeInputId = Layers.FindIndex(ly => string.Compare(ly.Name, alternativeLayerName) == 0);
                         Layers.Add(thislayer);
+                        break;
+                    case "Add":
+                        var addlayer = new Add(layer.config);
+                        int alterinput = layer.inbound_nodes[0].FindIndex(node =>
+                            string.Compare(node[0] as string, Layers[Layers.Count - 1].Name) != 0);
+                        string addalternativeLayerName = layer.inbound_nodes[0][alterinput][0] as string;
+                        addlayer.AlternativeInputId = Layers.FindIndex(ly => string.Compare(ly.Name, addalternativeLayerName) == 0);
+                        Layers.Add(addlayer);
                         break;
                 }
             }
@@ -119,6 +135,7 @@ namespace NNPP
                 }
             }
             Output.Init(Layers[Layers.Count - 1].OutputShape);
+            //Output.Init(Layers[31].OutputShape);
         }
         private int _height, _width;
 
@@ -150,12 +167,21 @@ namespace NNPP
                         Layers[(Layers[i] as Concatenate).AlternativeInputId].Output,
                     }, cb);
                 }
+                if (Layers[i] is Add)
+                {
+                    Layers[i].Run(new object[2]
+                    {
+                        Layers[i - 1].Output,
+                        Layers[(Layers[i] as Add).AlternativeInputId].Output,
+                    }, cb);
+                }
                 else
                 {
                     Layers[i].Run(new object[1] {Layers[i - 1].Output}, cb);
                 }
             }
             Output.Run(new object[1] { Layers[Layers.Count - 1].Output }, cb);
+            //Output.Run(new object[1] { Layers[31].Output }, cb);
             return Output.outputTex;
         }
 

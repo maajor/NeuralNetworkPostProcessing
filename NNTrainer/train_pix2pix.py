@@ -5,7 +5,7 @@ from keras_contrib.layers.normalization import InstanceNormalization
 from keras.layers import Input, Dense, Reshape, Flatten, Dropout, Concatenate
 from keras.layers import BatchNormalization, Activation, ZeroPadding2D
 from keras.layers.advanced_activations import LeakyReLU
-from keras.layers.convolutional import UpSampling2D, Conv2D
+from keras.layers.convolutional import UpSampling2D, Conv2D, Conv2DTranspose
 from keras.models import Sequential, Model
 from keras.optimizers import Adam
 import datetime
@@ -102,14 +102,14 @@ class GAN():
 
         # Downsampling
         d1 = conv2d(d0, self.gf, bn=False)
-        #d2 = conv2d(d1, self.gf*2)
-        #d3 = conv2d(d2, self.gf*4)
+        d2 = conv2d(d1, self.gf*2)
+        d3 = conv2d(d2, self.gf*4)
         #d4 = conv2d(d3, self.gf*8)
         #u5 = deconv2d(d4, d3, self.gf*4)
-        #u6 = deconv2d(u5, d2, self.gf*2)
-        #u7 = deconv2d(u6, d1, self.gf)
+        u6 = deconv2d(d3, d2, self.gf*2)
+        u7 = deconv2d(u6, d1, self.gf)
 
-        u8 = UpSampling2D(size=2)(d1)
+        u8 = UpSampling2D(size=2)(u7)
         #u8 = Conv2D(self.gf, kernel_size=4, strides=1, padding='same', activation='relu')(u7)
         #u9 = BatchNormalization(momentum = 0.8)(u8)
         #u10 = Concatenate()([u7, d0])
@@ -220,6 +220,6 @@ class GAN():
 
 if __name__ == '__main__':
     gan = GAN(dataset_name=args.dataset_name)
-    gan.train(epochs=200, batch_size=3, sample_interval=300)
+    gan.train(epochs=100, batch_size=3, sample_interval=300)
     gan.save_model()
 

@@ -28,7 +28,7 @@ namespace NNPP
 
         public ComputeShader Shader;
         private string shaderpath = "NNLayer";
-        private int LeakyReluKernel, BatchNormalizationKernel, InputLayerKernel,
+        private int LeakyReluKernel, BatchNormalizationKernel, InputLayerKernel, AddKernel,
             ConcatenateKernel, OutputLayerKernel, UpSampling2DKernel, ReluKernel, TanhKernel;
 
         private void Init()
@@ -47,6 +47,7 @@ namespace NNPP
             ConcatenateKernel = Shader.FindKernel("Concatenate");
             ReluKernel = Shader.FindKernel("ReLU");
             TanhKernel = Shader.FindKernel("Tanh");
+            AddKernel = Shader.FindKernel("Add");
         }
 
         public int KernelConv2D(int channel)
@@ -81,6 +82,8 @@ namespace NNPP
                     return TanhKernel;
                 case ("Concatenate"):
                     return ConcatenateKernel;
+                case ("Add"):
+                    return AddKernel;
                 default:
                     return -1;
             }
