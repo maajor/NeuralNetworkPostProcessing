@@ -1,4 +1,6 @@
-﻿using System;
+﻿//#define DEBUG_LAYER
+
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.Remoting.Messaging;
@@ -12,6 +14,7 @@ using UnityEngine.Experimental.Rendering;
 using UnityEngine.Rendering;
 using ComputeBuffer = UnityEngine.ComputeBuffer;
 
+
 namespace NNPP
 {
     public class NNModel
@@ -20,6 +23,7 @@ namespace NNPP
         private InputLayer Input;
         private OutputLayer Output;
         private CommandBuffer cb;
+        private const int debug_layer = 20;
 
         public void Load()
         {
@@ -119,8 +123,7 @@ namespace NNPP
 
         public void Init(int height, int width)
         {
-            Input.Init(new int4(height, width, 4, 0));
-            //Layers[0].Init(new int4(height, width, 3, 0));
+            Input.Init(new int4(height, width, Input.InputChannels, 0));
             for (int i = 1; i < Layers.Count; i++)
             {
                 if (Layers[i] is Concatenate)
@@ -134,8 +137,11 @@ namespace NNPP
                     Layers[i].Init(Layers[i - 1].OutputShape);
                 }
             }
+#if !DEBUG_LAYER
             Output.Init(Layers[Layers.Count - 1].OutputShape);
-            //Output.Init(Layers[31].OutputShape);
+#else
+            Output.Init(Layers[debug_layer].OutputShape);
+#endif
         }
         private int _height, _width;
 
@@ -180,8 +186,11 @@ namespace NNPP
                     Layers[i].Run(new object[1] {Layers[i - 1].Output}, cb);
                 }
             }
+#if !DEBUG_LAYER
             Output.Run(new object[1] { Layers[Layers.Count - 1].Output }, cb);
-            //Output.Run(new object[1] { Layers[31].Output }, cb);
+#else
+            Output.Run(new object[1] { Layers[debug_layer].Output }, cb);
+#endif
             return Output.outputTex;
         }
 

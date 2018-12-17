@@ -53,7 +53,7 @@ def main(args):
         json_file.write(model_json)
 
 
-    nb_epoch = 30000
+    nb_epoch = 10000
     train_batchsize =  1
     train_image_path = "datasets/coco2017"
 
@@ -111,7 +111,7 @@ if __name__ == "__main__":
     parser.add_argument('--tv_weight', default=1e-6, type=float,
                         help='weight of total variation regularization according to the paper to be set between 10e-4 and 10e-6.')
     parser.add_argument('--content_weight', default=1.0, type=float)
-    parser.add_argument('--style_weight', default=4.0, type=float)
+    parser.add_argument('--style_weight', default=5.0, type=float)
     parser.add_argument('--image_size', default=256, type=int)
 
     args = parser.parse_args()

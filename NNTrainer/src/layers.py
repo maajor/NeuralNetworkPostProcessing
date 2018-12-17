@@ -34,7 +34,7 @@ class InputNormalize(Layer):
 def conv_bn_relu(nb_filter, nb_row, nb_col,stride):   
     def conv_func(x):
         x = Conv2D(nb_filter, (nb_row, nb_col), strides=stride,padding='same')(x)
-        x = BatchNormalization()(x)
+        x = BatchNormalization(momentum = 0.8)(x)
         #x = LeakyReLU(0.2)(x)
         x = Activation("relu")(x)
         return x
@@ -48,11 +48,11 @@ def res_conv(nb_filter, nb_row, nb_col,stride=(1,1)):
         #identity = Cropping2D(cropping=((2,2),(2,2)))(x)
 
         a = Conv2D(nb_filter, (nb_row, nb_col), strides=stride, padding='same')(x)
-        a = BatchNormalization()(a)
+        a = BatchNormalization(momentum = 0.8)(a)
         #a = LeakyReLU(0.2)(a)
         a = Activation("relu")(a)
         a = Conv2D(nb_filter, (nb_row, nb_col), strides=stride, padding='same')(a)
-        y = BatchNormalization()(a)
+        y = BatchNormalization(momentum = 0.8)(a)
 
         return  add([x, y])
 
@@ -67,7 +67,7 @@ def dconv_bn_nolinear(nb_filter, nb_row, nb_col,stride=(2,2),activation="relu"):
         x = UpSampling2D(size=stride)(x)
         #x = ReflectionPadding2D(padding=stride)(x)
         x = Conv2D(nb_filter, (nb_row, nb_col), padding='same')(x)
-        x = BatchNormalization()(x)
+        x = BatchNormalization(momentum = 0.8)(x)
         x = Activation(activation)(x)
         return x
     return _dconv_bn

@@ -51,6 +51,7 @@ namespace NNPP
     [System.Serializable]
     public class KerasLayerConfigJson
     {
+        public string[] batch_input_shape;
         public string name;
         public int filters;
         public int[] kernel_size;

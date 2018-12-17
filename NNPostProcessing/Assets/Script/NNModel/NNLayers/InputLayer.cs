@@ -9,11 +9,13 @@ namespace NNPP
     public class InputLayer : NNLayerBase
     {
         private ComputeBuffer outputbuffer;
+        public int InputChannels;
         public RenderTargetIdentifier src;
         public RenderTargetIdentifier dep;
         public InputLayer(KerasLayerConfigJson config) : base(config)
         {
             KernelId = NNCompute.Instance.Kernel("InputLayer");
+            InputChannels = int.Parse(config.batch_input_shape[3]);
         }
 
         public override void Run(object[] input, CommandBuffer cmd)

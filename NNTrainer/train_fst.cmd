@@ -1,0 +1,1 @@
+python train_fst.py --style wave_crop 
