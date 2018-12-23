@@ -35,7 +35,7 @@ namespace NNPP
                 InputShape.z,
                 1
             });
-            cmd.DispatchCompute(NNCompute.Instance.Shader, KernelId, InputShape.x / 8, InputShape.y / 8, 1);
+            cmd.DispatchCompute(NNCompute.Instance.Shader, KernelId, Mathf.CeilToInt(InputShape.x / 8.0f), Mathf.CeilToInt(InputShape.y / 8.0f), 1);
         }
 
         public override void Init(int4 inputShape)

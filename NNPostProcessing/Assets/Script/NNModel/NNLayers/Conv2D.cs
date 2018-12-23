@@ -124,7 +124,7 @@ namespace NNPP
             });
             //int group = Mathf.CeilToInt(OutputShape.z / 32.0f);
 
-            cmd.DispatchCompute(NNCompute.Instance.Shader, KernelId, OutputShape.x / 8, OutputShape.y, 1);
+            cmd.DispatchCompute(NNCompute.Instance.Shader, KernelId, Mathf.CeilToInt(OutputShape.x / 4.0f), OutputShape.y, 1);
         }
     }
 }

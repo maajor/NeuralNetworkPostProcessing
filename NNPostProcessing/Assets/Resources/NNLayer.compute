@@ -43,9 +43,9 @@ uniform half Alpha;
 #define n_Ho OutputShape.x
 #define n_Co OutputShape.z
 
-groupshared half cache[THREADS*8];
+groupshared half cache[THREADS*4];
 
-[numthreads(8, 1, THREADS)]
+[numthreads(4, 1, THREADS)]
 #define KERNEL_NAME(x, y) x##_##y
 void KERNEL_NAME(Conv2D, THREADS)
 (uint3 id : SV_DispatchThreadID, uint3 groupid : SV_GroupThreadID)
@@ -119,22 +119,29 @@ void Concatenate(uint3 id : SV_DispatchThreadID)
 [numthreads(8, 8, 1)]
 void Add(uint3 id : SV_DispatchThreadID)
 {
-	LayerOutput[dot(id, OutputShapeIdMultiplier)] = LayerInput0[dot(id, InputShapeIdMultiplier)] + LayerInput0[dot(id, InputShapeIdMultiplier)];
+	LayerOutput[dot(id, OutputShapeIdMultiplier)] = LayerInput0[dot(id, InputShapeIdMultiplier)] + LayerInput1[dot(id, InputShapeIdMultiplier)];
 }
 
 //momentum trained, take parameter as population mean/std is ok
 [numthreads(32, 1, 1)]
 void BatchNormalization(const uint3 id : SV_DispatchThreadID)
 {
-	half gamma		= Weights[id.y * 4];
-	half beta		= Weights[id.y * 4 + 1];
-	half mean	= Weights[id.y * 4 + 2];
-	half std	= Weights[id.y * 4 + 3];
+	half gamma			= Weights[id.y * 4];
+	half beta			= Weights[id.y * 4 + 1];
+	half mov_mean		= Weights[id.y * 4 + 2];
+	half mov_variance	= Weights[id.y * 4 + 3];
 
 	const uint stride = n_Ci;
 
+	//uint idx = id.x * stride + id.y;
+	//LayerOutput[idx] = (LayerInput0[idx] - mov_mean) / sqrt(mov_variance + 1e-3) * gamma + beta;
+
+	
+	half rescale = sqrt(mov_variance + 1e-3);
+	rescale = gamma / rescale;
 	uint idx = id.x * stride + id.y;
-	LayerOutput[idx] = (LayerInput0[idx] - mean) * gamma / sqrt(std + 1e-8) + beta;
+	LayerOutput[idx] = LayerInput0[idx] * rescale - mov_mean * rescale + beta;
+	
 }
 
 [numthreads(8, 8, 1)]

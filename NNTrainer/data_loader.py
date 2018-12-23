@@ -10,8 +10,9 @@ class DataLoader():
         self.dataset_name = dataset_name
         self.img_res = img_res
 
-    def load_data(self, batch_size=1, is_testing=False):
+    def load_data(self, batch_size=1, is_testing=False, is_debug = False):
         data_type = "train" if not is_testing else "test"
+        data_type = data_type if not is_debug else "debug"
         path = glob('./datasets/%s/%s/*' % (self.dataset_name, data_type))
 
         np.random.seed(datetime.datetime.now().microsecond)

@@ -63,7 +63,11 @@ namespace NNPP
                 OutputShape.y,
                 OutputShape.z
             });
-            cmd.DispatchCompute(NNCompute.Instance.Shader, KernelId, OutputShape.x * OutputShape.y / 32, OutputShape.z, 1);
+            cmd.DispatchCompute(
+                NNCompute.Instance.Shader, 
+                KernelId, 
+                Mathf.CeilToInt(OutputShape.x * OutputShape.y / 32.0f), 
+                OutputShape.z, 1);
         }
     }
 }

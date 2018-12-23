@@ -31,7 +31,7 @@ namespace NNPP
         {
             cmd.SetComputeBufferParam(NNCompute.Instance.Shader, KernelId, "LayerInput0", input[0] as ComputeBuffer);
             cmd.SetComputeBufferParam(NNCompute.Instance.Shader, KernelId, "LayerOutput", outputbuffer);
-            cmd.DispatchCompute(NNCompute.Instance.Shader, KernelId, OutputShape.x * OutputShape.y * OutputShape.z / 32, 1, 1);
+            cmd.DispatchCompute(NNCompute.Instance.Shader, KernelId, Mathf.CeilToInt(OutputShape.x * OutputShape.y * OutputShape.z / 32.0f), 1, 1);
         }
     }
 }

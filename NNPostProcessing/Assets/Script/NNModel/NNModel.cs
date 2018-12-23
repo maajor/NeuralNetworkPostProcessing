@@ -23,7 +23,7 @@ namespace NNPP
         private InputLayer Input;
         private OutputLayer Output;
         private CommandBuffer cb;
-        private const int debug_layer = 20;
+        public int debug_layer = 23;
 
         public void Load()
         {

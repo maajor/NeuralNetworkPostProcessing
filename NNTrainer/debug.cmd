@@ -1,0 +1,1 @@
+python debug.py --modelpath udnie --modeltype fst

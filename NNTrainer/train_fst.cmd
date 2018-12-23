@@ -1,1 +1,1 @@
-python train_fst.py --style wave_crop 
+python train_fst.py --style udnie

@@ -1,0 +1,1 @@
+python exporter.py --modelpath udnie --modeltype fst
