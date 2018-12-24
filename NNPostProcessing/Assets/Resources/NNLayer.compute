@@ -1,4 +1,6 @@
-﻿#pragma kernel LeakyReLU THREADS=1
+﻿// neural network post-processing
+// https://github.com/maajor/NeuralNetworkPostProcessing
+#pragma kernel LeakyReLU THREADS=1
 #pragma kernel BatchNormalization THREADS=1 
 #pragma kernel InputLayer THREADS=1
 #pragma kernel OutputLayer  THREADS=1
@@ -63,15 +65,16 @@ void KERNEL_NAME(Conv2D, THREADS)
 		//each kernel y
 		for (uint q = 0; q < n_Hk; q++) {
 			
-			int3 input_id = int3(InputId.yx, id.z) - offset + int3(p, q, 0);
+			int3 input_id = int3(InputId.yx, id.z) - int3(offset) + int3(p, q, 0);
 
 			if (id.z < n_Ci) {
-				if (any(input_id.xy < 0) || any(input_id.xy > InputShape.yx)) {
-					cache[groupid.x * THREADS + id.z] = 0;
-				}
-				else {
-					cache[groupid.x * THREADS + id.z] = LayerInput0[dot(input_id.yxz, InputShapeIdMultiplier)];
-				}
+				//reflect padding
+				input_id.x = input_id.x < 0 ? -input_id.x : input_id.x;
+				input_id.y = input_id.y < 0 ? -input_id.y : input_id.y;
+				input_id.x = input_id.x > (int)InputShape.y ? 2 * (int)InputShape.y - input_id.x : input_id.x;
+				input_id.y = input_id.y > (int)InputShape.x ? 2 * (int)InputShape.x - input_id.y : input_id.y;
+				
+				cache[groupid.x * THREADS + id.z] = LayerInput0[dot(input_id.yxz, InputShapeIdMultiplier)];
 			}
 			
 			GroupMemoryBarrierWithGroupSync();
@@ -122,7 +125,7 @@ void Add(uint3 id : SV_DispatchThreadID)
 	LayerOutput[dot(id, OutputShapeIdMultiplier)] = LayerInput0[dot(id, InputShapeIdMultiplier)] + LayerInput1[dot(id, InputShapeIdMultiplier)];
 }
 
-//momentum trained, take parameter as population mean/std is ok
+//momentum trained, take parameter as population mean/std
 [numthreads(32, 1, 1)]
 void BatchNormalization(const uint3 id : SV_DispatchThreadID)
 {
@@ -131,17 +134,10 @@ void BatchNormalization(const uint3 id : SV_DispatchThreadID)
 	half mov_mean		= Weights[id.y * 4 + 2];
 	half mov_variance	= Weights[id.y * 4 + 3];
 
-	const uint stride = n_Ci;
-
-	//uint idx = id.x * stride + id.y;
-	//LayerOutput[idx] = (LayerInput0[idx] - mov_mean) / sqrt(mov_variance + 1e-3) * gamma + beta;
-
-	
 	half rescale = sqrt(mov_variance + 1e-3);
 	rescale = gamma / rescale;
-	uint idx = id.x * stride + id.y;
+	uint idx = id.x * n_Ci + id.y;
 	LayerOutput[idx] = LayerInput0[idx] * rescale - mov_mean * rescale + beta;
-	
 }
 
 [numthreads(8, 8, 1)]

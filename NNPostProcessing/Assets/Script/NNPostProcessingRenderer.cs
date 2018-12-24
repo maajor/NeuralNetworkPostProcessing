@@ -1,4 +1,7 @@
-﻿using System.Collections;
+﻿// neural network post-processing
+// https://github.com/maajor/NeuralNetworkPostProcessing
+
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -34,7 +37,7 @@ namespace NNPP
         {
             base.Init();
             model = new NNModel();
-            model.Load();
+            model.Load(settings.style.value.ToString());
         }
 
         public override void Release()

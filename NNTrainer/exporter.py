@@ -51,7 +51,7 @@ class Exporter():
 				thisweight["kernelweight"] = weights.tolist()
 			weights_dict.append(thisweight)
 		formatstr = '{"model":%s,"weights":%s}' % (self.loaded_model.to_json(), json.dumps(weights_dict))
-		with open("../NNPostProcessing/Assets/Resources/Model/NNModel.json", "w") as json_file:
+		with open("../NNPostProcessing/Assets/Resources/Model/%s.json" % self.path, "w") as json_file:
 		    json_file.write(formatstr)
 		print(self.loaded_model.summary())
 		plot_model(self.loaded_model, to_file='model/' + self.path + '_architecture.png', show_shapes=True)
