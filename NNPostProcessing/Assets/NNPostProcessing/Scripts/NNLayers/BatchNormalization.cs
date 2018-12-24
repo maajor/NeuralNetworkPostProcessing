@@ -3,7 +3,6 @@
 
 using System.Collections;
 using System.Collections.Generic;
-using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.Rendering;
 
@@ -22,7 +21,7 @@ namespace NNPP
         public override void LoadWeight(KerasLayerWeightJson[] weightsKernel)
         {
             WeightShape.x = weightsKernel[0].shape[0];
-            float[] Weights = new float[WeightShape.x * 4];
+            float[] Weights = new float[(int)WeightShape.x * 4];
             for (int i = 0; i < WeightShape.x; i++)
             {
                 Weights[i * 4] = weightsKernel[0].arrayweight[i];
@@ -30,23 +29,27 @@ namespace NNPP
                 Weights[i * 4 + 2] = weightsKernel[2].arrayweight[i];
                 Weights[i * 4 + 3] = weightsKernel[3].arrayweight[i];
             }
-            weightbuffer?.Release();
-            weightbuffer = new ComputeBuffer(WeightShape.x * 4, sizeof(float));
+            if(weightbuffer !=null)
+                weightbuffer.Release();
+            weightbuffer = new ComputeBuffer((int)WeightShape.x * 4, sizeof(float));
             weightbuffer.SetData(Weights);
         }
 
-        public override void Init(int4 inputShape)
+        public override void Init(Vector3Int inputShape)
         {
             base.Init(inputShape);
-            outputbuffer?.Release();
+            if (outputbuffer != null)
+                outputbuffer.Release();
             outputbuffer = new ComputeBuffer(OutputShape.x * OutputShape.y * OutputShape.z, sizeof(float));
             Output = outputbuffer;
         }
 
         public override void Release()
         {
-            outputbuffer?.Release();
-            weightbuffer?.Release();
+            if (outputbuffer != null)
+                outputbuffer.Release();
+            if (weightbuffer != null)
+                weightbuffer.Release();
         }
 
         public override void Run(object[] input, CommandBuffer cmd)

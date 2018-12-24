@@ -3,7 +3,6 @@
 
 using System.Collections;
 using System.Collections.Generic;
-using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.Rendering;
 
@@ -18,17 +17,19 @@ namespace NNPP
             KernelId = NNCompute.Instance.Kernel("Add");
         }
 
-        public override void Init(int4 inputShape)
+        public override void Init(Vector3Int inputShape)
         {
             base.Init(inputShape);
-            outputbuffer?.Release();
+            if(outputbuffer != null)
+                outputbuffer.Release();
             outputbuffer = new ComputeBuffer(OutputShape.x * OutputShape.y * OutputShape.z, sizeof(float));
             Output = outputbuffer;
         }
 
         public override void Release()
         {
-            outputbuffer?.Release();
+            if (outputbuffer != null)
+                outputbuffer.Release();
         }
 
         public override void Run(object[] input, CommandBuffer cmd)
@@ -39,7 +40,7 @@ namespace NNPP
             cmd.SetComputeBufferParam(NNCompute.Instance.Shader, KernelId, "LayerOutput", outputbuffer);
             cmd.SetComputeIntParams(NNCompute.Instance.Shader, "InputShape", new int[3]
             {
-                InputShape.x,
+                (int)InputShape.x,
                 InputShape.y,
                 InputShape.z
             });
@@ -62,7 +63,6 @@ namespace NNPP
                 1
             });
             cmd.DispatchCompute(NNCompute.Instance.Shader, KernelId, Mathf.CeilToInt(OutputShape.x / 8.0f), Mathf.CeilToInt(OutputShape.y / 8.0f), OutputShape.z);
-            //Output = input0;
         }
     }
 }

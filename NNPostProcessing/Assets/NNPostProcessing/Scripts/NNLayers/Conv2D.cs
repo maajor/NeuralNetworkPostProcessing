@@ -4,7 +4,6 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.Rendering;
 
@@ -14,26 +13,26 @@ namespace NNPP
     public class Conv2D : NNLayerBase
     {
         public int Filters;
-        public int2 KernalSize;
-        public int2 Stride;
+        public Vector2Int KernalSize;
+        public Vector2Int Stride;
         private ComputeBuffer outputbuffer;
         private ComputeBuffer weightbuffer;
         public Conv2D(KerasLayerConfigJson config) : base(config)
         {
             Filters = config.filters;
-            KernalSize = new int2(config.kernel_size[0], config.kernel_size[1]);
-            Stride = new int2(config.strides[0], config.strides[1]);
+            KernalSize = new Vector2Int(config.kernel_size[0], config.kernel_size[1]);
+            Stride = new Vector2Int(config.strides[0], config.strides[1]);
             KernelId = NNCompute.Instance.KernelConv2D(32);
         }
 
         public override void LoadWeight(KerasLayerWeightJson[] weightsKernel)
         {
-            WeightShape = new int4(weightsKernel[0].shape[0],
+            WeightShape = new Vector4(weightsKernel[0].shape[0],
                 weightsKernel[0].shape[1],
                 weightsKernel[0].shape[2],
                 weightsKernel[0].shape[3]);
-            int kernel_weight_length = WeightShape.x * WeightShape.y * WeightShape.z * WeightShape.w;
-            int bias_weight_length = WeightShape.w;
+            int kernel_weight_length = (int)(WeightShape.x * WeightShape.y * WeightShape.z * WeightShape.w);
+            int bias_weight_length = (int)WeightShape.w;
             float[] Weights = new float[kernel_weight_length + bias_weight_length];
             for (int i = 0; i < WeightShape.x; i++)
             {
@@ -43,28 +42,28 @@ namespace NNPP
                     {
                         for (int w = 0; w < WeightShape.w; w++)
                         {
-                            int arrayindex = i * WeightShape.y * WeightShape.z * WeightShape.w +
+                            float arrayindex = i * WeightShape.y * WeightShape.z * WeightShape.w +
                                              j * WeightShape.z * WeightShape.w +
                                              k * WeightShape.w +
                                              w;
-                            Weights[arrayindex] = weightsKernel[0].kernelweight[i, j, k, w];
+                            Weights[(int)arrayindex] = weightsKernel[0].kernelweight[i, j, k, w];
                         }
                     }
                 }
             }
             Array.Copy(weightsKernel[1].arrayweight, 0, Weights, kernel_weight_length, bias_weight_length);
-            weightbuffer?.Release();
+            if (weightbuffer != null)
+                weightbuffer.Release();
             weightbuffer = new ComputeBuffer(kernel_weight_length + bias_weight_length, sizeof(float));
             weightbuffer.SetData(Weights);
         }
 
-        public override void Init(int4 inputShape)
+        public override void Init(Vector3Int inputShape)
         {
             InputShape = inputShape;
-            OutputShape = inputShape;
-            OutputShape.xy /= Stride;
-            OutputShape.z = Filters;
-            outputbuffer?.Release();
+            OutputShape = new Vector3Int(inputShape.x / Stride.x, inputShape.y / Stride.y, Filters);
+            if (outputbuffer != null)
+                outputbuffer.Release();
             outputbuffer = new ComputeBuffer(OutputShape.x * OutputShape.y * OutputShape.z, sizeof(float));
             int maxfilter = Mathf.Max(inputShape.z, Filters);
             KernelId = NNCompute.Instance.KernelConv2D(maxfilter);
@@ -73,8 +72,10 @@ namespace NNPP
 
         public override void Release()
         {
-            weightbuffer?.Release();
-            outputbuffer?.Release();
+            if (weightbuffer != null)
+                weightbuffer.Release();
+            if (outputbuffer != null)
+                outputbuffer.Release();
         }
 
         public override void Run(object[] input, CommandBuffer cmd)
@@ -125,8 +126,6 @@ namespace NNPP
                 Stride.x,
                 Stride.y
             });
-            //int group = Mathf.CeilToInt(OutputShape.z / 32.0f);
-
             cmd.DispatchCompute(NNCompute.Instance.Shader, KernelId, Mathf.CeilToInt(OutputShape.x / 4.0f), OutputShape.y, 1);
         }
     }

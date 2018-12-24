@@ -6,7 +6,6 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using Newtonsoft.Json;
-using Unity.Mathematics;
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
@@ -121,14 +120,14 @@ namespace NNPP
 
         public void Init(int height, int width)
         {
-            Input.Init(new int4(height, width, Input.InputChannels, 0));
+            Input.Init(new Vector3Int(height, width, Input.InputChannels));
             for (int i = 1; i < Layers.Count; i++)
             {
                 if (Layers[i] is Concatenate)
                 {
-                    int4 input1 = Layers[i - 1].OutputShape;
-                    int4 input2 = Layers[(Layers[i] as Concatenate).AlternativeInputId].OutputShape;
-                    Layers[i].Init(new int4(input1.x, input1.y, input1.z + input2.z, 1));
+                    Vector3Int input1 = Layers[i - 1].OutputShape;
+                    Vector3Int input2 = Layers[(Layers[i] as Concatenate).AlternativeInputId].OutputShape;
+                    Layers[i].Init(new Vector3Int(input1.x, input1.y, input1.z + input2.z));
                 }
                 else
                 {

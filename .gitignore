@@ -15,7 +15,8 @@ NNTrainer/datasets/output
 NNTrainer/datasets/cityscapes
 NNTrainer/images/terrain
 NNTrainer/trained_test
-Assets/AssetStoreTools*
+Release
+NNPostProcessing/Assets/AssetStoreTools*
 
 # Visual Studio cache directory
 .vs/

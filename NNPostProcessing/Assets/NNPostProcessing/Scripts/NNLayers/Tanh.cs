@@ -3,7 +3,6 @@
 
 using System.Collections;
 using System.Collections.Generic;
-using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.Rendering;
 
@@ -17,17 +16,19 @@ namespace NNPP
             KernelId = NNCompute.Instance.Kernel("Tanh");
         }
 
-        public override void Init(int4 inputShape)
+        public override void Init(Vector3Int inputShape)
         {
             base.Init(inputShape);
-            outputbuffer?.Release();
+            if (outputbuffer != null)
+                outputbuffer.Release();
             outputbuffer = new ComputeBuffer(OutputShape.x * OutputShape.y * OutputShape.z, sizeof(float));
             Output = outputbuffer;
         }
 
         public override void Release()
         {
-            outputbuffer?.Release();
+            if (outputbuffer != null)
+                outputbuffer.Release();
         }
 
         public override void Run(object[] input, CommandBuffer cmd)

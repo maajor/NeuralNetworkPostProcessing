@@ -12,7 +12,25 @@ MonoBehaviour:
   m_Name: postprocessing
   m_EditorClassIdentifier: 
   settings:
-  - {fileID: 114736202588543104}
+  - {fileID: 114134572368661704}
+--- !u!114 &114134572368661704
+MonoBehaviour:
+  m_ObjectHideFlags: 3
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8e417fb013ae2d944a0ee5615c07bcaf, type: 3}
+  m_Name: NNPostProcessingEffect
+  m_EditorClassIdentifier: 
+  active: 1
+  enabled:
+    overrideState: 1
+    value: 1
+  style:
+    overrideState: 1
+    value: 4
 --- !u!114 &114276484890070860
 MonoBehaviour:
   m_ObjectHideFlags: 3

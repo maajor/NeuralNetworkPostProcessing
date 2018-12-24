@@ -1,7 +1,6 @@
 ﻿// neural network post-processing
 // https://github.com/maajor/NeuralNetworkPostProcessing
 
-using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.Rendering;
 
@@ -11,9 +10,9 @@ namespace NNPP
     public class NNLayerBase
     {
         public string Name;
-        public int4 InputShape;
-        public int4 OutputShape;
-        public int4 WeightShape;
+        public Vector3Int InputShape;
+        public Vector3Int OutputShape;
+        public Vector4 WeightShape;
         public object Output;
         [SerializeField]
         protected int KernelId;
@@ -33,7 +32,7 @@ namespace NNPP
             Output = input[0];
         }
 
-        public virtual void Init(int4 inputShape)
+        public virtual void Init(Vector3Int inputShape)
         {
             InputShape = inputShape;
             OutputShape = inputShape;

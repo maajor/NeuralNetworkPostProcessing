@@ -3,7 +3,6 @@
 
 using System.Collections;
 using System.Collections.Generic;
-using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.Rendering;
 
@@ -11,26 +10,27 @@ namespace NNPP
 {
     public class UpSampling2D : NNLayerBase
     {
-        public int2 Size;
+        public Vector2Int Size;
         private ComputeBuffer outputbuffer;
         public UpSampling2D(KerasLayerConfigJson config) : base(config)
         {
-            Size = new int2(config.size[0], config.size[1]);
+            Size = new Vector2Int(config.size[0], config.size[1]);
             KernelId = NNCompute.Instance.Kernel("UpSampling2D");
         }
-        public override void Init(int4 inputShape)
+        public override void Init(Vector3Int inputShape)
         {
             InputShape = inputShape;
-            OutputShape = inputShape;
-            OutputShape.xy *= Size;
-            outputbuffer?.Release();
+            OutputShape = new Vector3Int(inputShape.x * Size.x, inputShape.y * Size.y, inputShape.z);
+            if (outputbuffer != null)
+                outputbuffer.Release();
             outputbuffer = new ComputeBuffer(OutputShape.x * OutputShape.y * OutputShape.z, sizeof(float));
             Output = outputbuffer;
         }
 
         public override void Release()
         {
-            outputbuffer?.Release();
+            if (outputbuffer != null)
+                outputbuffer.Release();
         }
 
         public override void Run(object[] input, CommandBuffer cmd)

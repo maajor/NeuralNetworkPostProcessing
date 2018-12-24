@@ -3,7 +3,6 @@
 
 using System.Collections;
 using System.Collections.Generic;
-using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.Rendering;
 
@@ -41,17 +40,19 @@ namespace NNPP
             cmd.DispatchCompute(NNCompute.Instance.Shader, KernelId, Mathf.CeilToInt(InputShape.x / 8.0f), Mathf.CeilToInt(InputShape.y / 8.0f), 1);
         }
 
-        public override void Init(int4 inputShape)
+        public override void Init(Vector3Int inputShape)
         {
             base.Init(inputShape);
-            outputbuffer?.Release();
+            if(outputbuffer !=null)
+                outputbuffer.Release();
             outputbuffer = new ComputeBuffer(OutputShape.x * OutputShape.y * OutputShape.z, sizeof(float));
             Output = outputbuffer;
         }
 
         public override void Release()
         {
-            outputbuffer?.Release();
+            if (outputbuffer != null)
+                outputbuffer.Release();
         }
     }
 }

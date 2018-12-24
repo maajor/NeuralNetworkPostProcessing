@@ -3,7 +3,6 @@
 
 using System.Collections;
 using System.Collections.Generic;
-using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.Rendering;
 
@@ -36,10 +35,11 @@ namespace NNPP
             cmd.DispatchCompute(NNCompute.Instance.Shader, KernelId, OutputShape.x / 8, OutputShape.y / 8, 1);
         }
 
-        public override void Init(int4 inputShape)
+        public override void Init(Vector3Int inputShape)
         {
             base.Init(inputShape);
-            outputTex?.Release();
+            if (outputTex != null)
+                outputTex.Release();
             outputTex = new RenderTexture(OutputShape.y, OutputShape.x, 0, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Linear);
             outputTex.enableRandomWrite = true;
             outputTex.Create();
@@ -47,7 +47,8 @@ namespace NNPP
 
         public override void Release()
         {
-            outputTex?.Release();
+            if (outputTex != null)
+                outputTex.Release();
         }
     }
 }
