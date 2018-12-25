@@ -10,11 +10,8 @@ You can create your style offline and train the network with your own data, maki
 * Trainer with pix2pix or fast-style-transfer
 * Keras model and weight discription to Unity
 
-trained with Pix2Pix:  
-[![Pix2Pix](http://img.youtube.com/vi/qYcST5reOzY/0.jpg)](http://www.youtube.com/watch?v=qYcST5reOzY "Pix2Pix")
-
-trained with Fast Neural Style Transfer:  
-[![Pix2Pix](http://img.youtube.com/vi/FdhDpCHo4aU/0.jpg)](https://www.youtube.com/watch?v=FdhDpCHo4aU "FNST")
+trained with Fast Neural Style Transfer:   
+[![FNST](http://img.youtube.com/vi/aA8qO4o-Xp0/0.jpg)](http://www.youtube.com/watch?v=aA8qO4o-Xp0 "FNST")
 
 ## How to Run:
 
@@ -27,7 +24,6 @@ Open ***HirezScene*** scene and run!
 Reference
 ========
 
-borrowed code from
 * https://github.com/eriklindernoren/Keras-GAN  
 * https://github.com/misgod/fast-neural-style-keras  
 * https://github.com/keijiro/Pix2Pix
