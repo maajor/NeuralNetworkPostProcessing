@@ -159,10 +159,10 @@ void InputLayer(uint3 id : SV_DispatchThreadID)
 {
 	uint2 remapid = uint2(id.y, InputShape.x - 1 - id.x);
 	half3 remap = InputImage[remapid.xy] * 2.0f - 1.0f;
-	if (InputShape.z == 4) {
+	/*if (InputShape.z == 4) {
 		half3 remap_dep = InputImage1[remapid.xy] * 2.0f - 1.0f;
 		LayerOutput[dot(uint3(id.xy, 3), InputShapeIdMultiplier)] = remap_dep.x;
-	}
+	}*/
 	LayerOutput[dot(uint3(id.xy, 0), InputShapeIdMultiplier)] = remap.x;
 	LayerOutput[dot(uint3(id.xy, 1), InputShapeIdMultiplier)] = remap.y;
 	LayerOutput[dot(uint3(id.xy, 2), InputShapeIdMultiplier)] = remap.z;

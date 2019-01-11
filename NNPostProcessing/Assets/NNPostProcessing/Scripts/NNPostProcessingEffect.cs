@@ -5,28 +5,36 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
-using UnityEngine.Rendering.PostProcessing;
 
 namespace NNPP
 {
 
     [System.Serializable]
-    [PostProcess(typeof(NNPostProcessingRenderer), PostProcessEvent.BeforeStack, "NNPP")]
-    public sealed class NNPostProcessingEffect : PostProcessEffectSettings
+    [RequireComponent(typeof(Camera))]
+    public class NNPostProcessingEffect : MonoBehaviour
     {
-        [DisplayName("Type"), Tooltip("Neural Network Style Type")]
-        public NNStyleParameter style = new NNStyleParameter { value = NNStyle.starry_night };
+        public NNStyle style = NNStyle.starry_night;
 
-        public override bool IsEnabledAndSupported(PostProcessRenderContext context)
+        private NNModel model;
+
+        void Start()
         {
-            return enabled.value
-                   && SystemInfo.supportsComputeShaders
-                   && !RuntimeUtilities.isAndroidOpenGL;
+            model = new NNModel();
+            model.Load(style.ToString());
         }
-    }
 
-    [System.Serializable]
-    public sealed class NNStyleParameter : ParameterOverride<NNStyle> { }
+        void OnDisable()
+        {
+            model.Release();
+        }
+
+        void OnRenderImage(RenderTexture src, RenderTexture dst)
+        {
+            var predict = model.Predict(src);
+            Graphics.Blit(predict, dst);
+        }
+
+    }
 
     public enum NNStyle
     {
@@ -37,5 +45,9 @@ namespace NNPP
         starry_night,
         udnie,
         wave_crop,
+        gritty,
+        shanshui,
+        shanshui1, shanshui2,
+        watercolor
     }
 }

@@ -1,6 +1,6 @@
 ﻿// neural network post-processing
 // https://github.com/maajor/NeuralNetworkPostProcessing
-//#define DEBUG_LAYER
+#define DEBUG_LAYER
 
 using System;
 using System.Collections;
@@ -21,7 +21,7 @@ namespace NNPP
         private InputLayer Input;
         private OutputLayer Output;
         private CommandBuffer cb;
-        public int debug_layer = 23;
+        public int debug_layer = 0;
 
         public void Load(string modelname)
         {
@@ -121,7 +121,11 @@ namespace NNPP
         public void Init(int height, int width)
         {
             Input.Init(new Vector3Int(height, width, Input.InputChannels));
+#if !DEBUG_LAYER
             for (int i = 1; i < Layers.Count; i++)
+#else
+            for (int i = 1; i < debug_layer + 1; i++)
+#endif
             {
                 if (Layers[i] is Concatenate)
                 {
@@ -142,25 +146,26 @@ namespace NNPP
         }
         private int _height, _width;
 
-        public void Setup(CommandBuffer cmd, RenderTargetIdentifier src, RenderTargetIdentifier dep, int height, int width)
+        private void Setup(RenderTexture src)
         {
-            if (_height != height || _width != width)
+            if (_height != src.height || _width != src.width)
             {
-                Init(height, width);
-                _height = height;
-                _width = width;
+                Init(src.height, src.width);
+                _height = src.height;
+                _width = src.width;
             }
-
             Input.src = src;
-            Input.dep = dep;
-
-            cb = cmd;
         }
 
-        public RenderTexture Predict()
+        public RenderTexture Predict(RenderTexture src)
         {
-            Input.Run(null, cb);
+            Setup(src);
+            Input.Run(null);
+#if !DEBUG_LAYER
             for (int i = 1; i < Layers.Count; i++)
+#else
+            for (int i = 1; i < debug_layer + 1; i++)
+#endif
             {
                 if (Layers[i] is Concatenate)
                 {
@@ -168,7 +173,7 @@ namespace NNPP
                     {
                         Layers[i - 1].Output,
                         Layers[(Layers[i] as Concatenate).AlternativeInputId].Output,
-                    }, cb);
+                    });
                 }
                 if (Layers[i] is Add)
                 {
@@ -176,17 +181,17 @@ namespace NNPP
                     {
                         Layers[i - 1].Output,
                         Layers[(Layers[i] as Add).AlternativeInputId].Output,
-                    }, cb);
+                    });
                 }
                 else
                 {
-                    Layers[i].Run(new object[1] {Layers[i - 1].Output}, cb);
+                    Layers[i].Run(new object[1] {Layers[i - 1].Output});
                 }
             }
 #if !DEBUG_LAYER
-            Output.Run(new object[1] { Layers[Layers.Count - 1].Output }, cb);
+            Output.Run(new object[1] { Layers[Layers.Count - 1].Output });
 #else
-            Output.Run(new object[1] { Layers[debug_layer].Output }, cb);
+            Output.Run(new object[1] { Layers[debug_layer].Output });
 #endif
             return Output.outputTex;
         }

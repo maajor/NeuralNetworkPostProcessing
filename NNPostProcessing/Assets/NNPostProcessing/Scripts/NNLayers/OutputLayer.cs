@@ -16,23 +16,23 @@ namespace NNPP
             KernelId = NNCompute.Instance.Kernel("OutputLayer");
         }
 
-        public override void Run(object[] input, CommandBuffer cmd)
+        public override void Run(object[] input)
         {
-            cmd.SetComputeBufferParam(NNCompute.Instance.Shader, KernelId, "LayerInput0", input[0] as ComputeBuffer);
-            cmd.SetComputeTextureParam(NNCompute.Instance.Shader, KernelId, "OutputImage", outputTex);
-            cmd.SetComputeIntParams(NNCompute.Instance.Shader, "InputShape", new int[3]
+            NNCompute.Instance.Shader.SetBuffer(KernelId, "LayerInput0", input[0] as ComputeBuffer);
+            NNCompute.Instance.Shader.SetTexture(KernelId, "OutputImage", outputTex);
+            NNCompute.Instance.Shader.SetInts("InputShape", new int[3]
             {
                 InputShape.x,
                 InputShape.y,
                 InputShape.z
             });
-            cmd.SetComputeIntParams(NNCompute.Instance.Shader, "InputShapeIdMultiplier", new int[3]
+            NNCompute.Instance.Shader.SetInts("InputShapeIdMultiplier", new int[3]
             {
                 InputShape.y * InputShape.z,
                 InputShape.z,
                 1
             });
-            cmd.DispatchCompute(NNCompute.Instance.Shader, KernelId, OutputShape.x / 8, OutputShape.y / 8, 1);
+            NNCompute.Instance.Shader.Dispatch(KernelId, OutputShape.x / 8, OutputShape.y / 8, 1);
         }
 
         public override void Init(Vector3Int inputShape)

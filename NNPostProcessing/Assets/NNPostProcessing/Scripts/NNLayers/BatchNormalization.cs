@@ -52,25 +52,24 @@ namespace NNPP
                 weightbuffer.Release();
         }
 
-        public override void Run(object[] input, CommandBuffer cmd)
+        public override void Run(object[] input)
         {
-            cmd.SetComputeBufferParam(NNCompute.Instance.Shader, KernelId, "LayerInput0", input[0] as ComputeBuffer);
-            cmd.SetComputeBufferParam(NNCompute.Instance.Shader, KernelId, "LayerOutput", outputbuffer);
-            cmd.SetComputeBufferParam(NNCompute.Instance.Shader, KernelId, "Weights", weightbuffer);
-            cmd.SetComputeIntParams(NNCompute.Instance.Shader, "InputShape", new int[3]
+            NNCompute.Instance.Shader.SetBuffer(KernelId, "LayerInput0", input[0] as ComputeBuffer);
+            NNCompute.Instance.Shader.SetBuffer(KernelId, "LayerOutput", outputbuffer);
+            NNCompute.Instance.Shader.SetBuffer(KernelId, "Weights", weightbuffer);
+            NNCompute.Instance.Shader.SetInts("InputShape", new int[3]
             {
                 InputShape.x,
                 InputShape.y,
                 InputShape.z
             });
-            cmd.SetComputeIntParams(NNCompute.Instance.Shader, "OutputShape", new int[3]
+            NNCompute.Instance.Shader.SetInts("OutputShape", new int[3]
             {
                 OutputShape.x,
                 OutputShape.y,
                 OutputShape.z
             });
-            cmd.DispatchCompute(
-                NNCompute.Instance.Shader, 
+            NNCompute.Instance.Shader.Dispatch(
                 KernelId, 
                 Mathf.CeilToInt(OutputShape.x * OutputShape.y / 32.0f), 
                 OutputShape.z, 1);

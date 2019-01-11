@@ -13,20 +13,15 @@ public class NNDebug : MonoBehaviour {
         Texture tex = Selection.activeObject as Texture;
         Debug.Log(tex);
 
-        RenderTargetIdentifier source = new RenderTargetIdentifier(tex);
-        CommandBuffer cb = new CommandBuffer();
-        cb.Blit(tex, source);
+        var source = new RenderTexture(tex.width, tex.height,0);
+        Graphics.Blit(tex, source);
 
         for (int i = 1; i < 32; i++)
         {
             NNModel model = new NNModel();
             model.debug_layer = i;
             model.Load("starry_night");
-            model.Setup(cb, source, BuiltinRenderTextureType.ResolvedDepth, tex.height, tex.width);
-            var dst = model.Predict();
-
-            Camera.main.AddCommandBuffer(CameraEvent.AfterEverything, cb);
-            Camera.main.Render();
+            var dst = model.Predict(source);
 
             SaveRTToFile(dst, i);
 

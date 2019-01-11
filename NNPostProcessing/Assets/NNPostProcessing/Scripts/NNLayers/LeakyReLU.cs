@@ -17,12 +17,12 @@ namespace NNPP
             KernelId = NNCompute.Instance.Kernel("LeakyReLU");
         }
 
-        public override void Run(object[] input, CommandBuffer cmd)
+        public override void Run(object[] input)
         {
-            cmd.SetComputeBufferParam(NNCompute.Instance.Shader, KernelId, "LayerInput0", input[0] as ComputeBuffer);
-            cmd.SetComputeBufferParam(NNCompute.Instance.Shader, KernelId, "LayerOutput", outputbuffer);
-            cmd.SetComputeFloatParam(NNCompute.Instance.Shader, "Alpha", Alpha);
-            cmd.DispatchCompute(NNCompute.Instance.Shader, KernelId, Mathf.CeilToInt(OutputShape.x * OutputShape.y * OutputShape.z / 32.0f), 1, 1);
+            NNCompute.Instance.Shader.SetBuffer(KernelId, "LayerInput0", input[0] as ComputeBuffer);
+            NNCompute.Instance.Shader.SetBuffer(KernelId, "LayerOutput", outputbuffer);
+            NNCompute.Instance.Shader.SetFloat("Alpha", Alpha);
+            NNCompute.Instance.Shader.Dispatch(KernelId, Mathf.CeilToInt(OutputShape.x * OutputShape.y * OutputShape.z / 32.0f), 1, 1);
         }
     }
 }

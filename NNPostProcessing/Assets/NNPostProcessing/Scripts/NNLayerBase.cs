@@ -27,7 +27,7 @@ namespace NNPP
 
         }
 
-        public virtual void Run(object[] input, CommandBuffer cmd)
+        public virtual void Run(object[] input)
         {
             Output = input[0];
         }

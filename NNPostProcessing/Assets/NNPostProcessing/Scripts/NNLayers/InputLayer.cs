@@ -12,32 +12,31 @@ namespace NNPP
     {
         private ComputeBuffer outputbuffer;
         public int InputChannels;
-        public RenderTargetIdentifier src;
-        public RenderTargetIdentifier dep;
+        public RenderTexture src;
         public InputLayer(KerasLayerConfigJson config) : base(config)
         {
             KernelId = NNCompute.Instance.Kernel("InputLayer");
             InputChannels = int.Parse(config.batch_input_shape[3]);
         }
 
-        public override void Run(object[] input, CommandBuffer cmd)
+        public override void Run(object[] input)
         {
-            cmd.SetComputeTextureParam(NNCompute.Instance.Shader, KernelId, "InputImage", src);
-            cmd.SetComputeTextureParam(NNCompute.Instance.Shader, KernelId, "InputImage1", dep);
-            cmd.SetComputeBufferParam(NNCompute.Instance.Shader, KernelId, "LayerOutput", outputbuffer);
-            cmd.SetComputeIntParams(NNCompute.Instance.Shader, "InputShape", new int[3]
+
+            NNCompute.Instance.Shader.SetTexture(KernelId, "InputImage", src);
+            NNCompute.Instance.Shader.SetBuffer(KernelId, "LayerOutput", outputbuffer);
+            NNCompute.Instance.Shader.SetInts("InputShape", new int[3]
             {
                 InputShape.x,
                 InputShape.y,
                 InputShape.z
             });
-            cmd.SetComputeIntParams(NNCompute.Instance.Shader, "InputShapeIdMultiplier", new int[3]
+            NNCompute.Instance.Shader.SetInts("InputShapeIdMultiplier", new int[3]
             {
                 InputShape.y * InputShape.z,
                 InputShape.z,
                 1
             });
-            cmd.DispatchCompute(NNCompute.Instance.Shader, KernelId, Mathf.CeilToInt(InputShape.x / 8.0f), Mathf.CeilToInt(InputShape.y / 8.0f), 1);
+            NNCompute.Instance.Shader.Dispatch(KernelId, Mathf.CeilToInt(InputShape.x / 8.0f), Mathf.CeilToInt(InputShape.y / 8.0f), 1);
         }
 
         public override void Init(Vector3Int inputShape)
