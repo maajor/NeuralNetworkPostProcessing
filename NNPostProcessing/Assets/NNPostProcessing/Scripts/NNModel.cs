@@ -1,6 +1,6 @@
 ﻿// neural network post-processing
 // https://github.com/maajor/NeuralNetworkPostProcessing
-#define DEBUG_LAYER
+//#define DEBUG_LAYER
 
 using System;
 using System.Collections;

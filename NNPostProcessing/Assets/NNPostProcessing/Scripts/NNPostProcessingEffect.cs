@@ -46,8 +46,6 @@ namespace NNPP
         udnie,
         wave_crop,
         gritty,
-        shanshui,
-        shanshui1, shanshui2,
         watercolor
     }
 }

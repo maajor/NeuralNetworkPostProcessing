@@ -15,6 +15,7 @@ NNTrainer/datasets/output
 NNTrainer/datasets/cityscapes
 NNTrainer/images/terrain
 NNTrainer/trained_test
+Assetstore/
 Release
 NNPostProcessing/Assets/AssetStoreTools*
 
