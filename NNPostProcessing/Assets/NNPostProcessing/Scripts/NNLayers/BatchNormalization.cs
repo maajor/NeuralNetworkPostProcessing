@@ -1,5 +1,4 @@
 ﻿// neural network post-processing
-// https://github.com/maajor/NeuralNetworkPostProcessing
 
 using System.Collections;
 using System.Collections.Generic;
@@ -11,13 +10,22 @@ namespace NNPP
     [System.Serializable]
     public class BatchNormalization : NNLayerBase
     {
+        public float[] weightcache;
         private ComputeBuffer weightbuffer;
         private ComputeBuffer outputbuffer;
-        public BatchNormalization(KerasLayerConfigJson config) : base(config)
+        public BatchNormalization() : base()
         {
             KernelId = NNCompute.Instance.Kernel("BatchNormalization");
         }
 
+        
+        public override void FromCache()
+        {
+            weightbuffer = new ComputeBuffer(weightcache.Length, sizeof(float));
+            weightbuffer.SetData(weightcache);
+            weightcache = null;
+        }
+        /*
         public override void LoadWeight(KerasLayerWeightJson[] weightsKernel)
         {
             WeightShape.x = weightsKernel[0].shape[0];
@@ -33,7 +41,7 @@ namespace NNPP
                 weightbuffer.Release();
             weightbuffer = new ComputeBuffer((int)WeightShape.x * 4, sizeof(float));
             weightbuffer.SetData(Weights);
-        }
+        }*/
 
         public override void Init(Vector3Int inputShape)
         {

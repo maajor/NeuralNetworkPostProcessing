@@ -1,11 +1,9 @@
 ﻿// neural network post-processing
-// https://github.com/maajor/NeuralNetworkPostProcessing
 //#define DEBUG_LAYER
 
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using Newtonsoft.Json;
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
@@ -20,102 +18,23 @@ namespace NNPP
         public List<NNLayerBase> Layers;
         private InputLayer Input;
         private OutputLayer Output;
-        private CommandBuffer cb;
+#if DEBUG_LAYER
         public int debug_layer = 0;
-
-        public void Load(string modelname)
-        {
-            TextAsset architexturetext = Resources.Load<TextAsset>("Model/" + modelname);
-            var modeljson = JsonConvert.DeserializeObject<KerasJson>(architexturetext.text);
-            LoadModel(modeljson.model.config);
-            LoadWeight(modeljson.weights);
-        }
-
-        private void LoadModel(KerasLayersJson layersJson)
+#endif
+        public void Load(string name)
         {
             Layers = new List<NNLayerBase>();
-            foreach (var layer in layersJson.layers)
+            TextAsset text = Resources.Load<TextAsset>("Model/" + name);
+            NNModelSerialize modelSerialize = JsonUtility.FromJson<NNModelSerialize>(text.text);
+            for (int i = 0; i < modelSerialize.LayerJson.Count; i++)
             {
-                switch (layer.class_name)
-                {
-                    case "InputLayer":
-                        Input = new InputLayer(layer.config);
-                        Layers.Add(Input);
-                        break;
-                    case "Activation":
-                        if (layer.config.activation == "relu")
-                        {
-                            Layers.Add(new ReLU(layer.config));
-                        }
-                        if (layer.config.activation == "tanh")
-                        {
-                            Layers.Add(new Tanh(layer.config));
-                        }
-                        break;
-                    case "Conv2D":
-                        Layers.Add(new Conv2D(layer.config));
-                        if (layer.config.activation == "relu")
-                        {
-                            Layers.Add(new ReLU(layer.config));
-                        }
-                        if (layer.config.activation == "tanh")
-                        {
-                            Layers.Add(new Tanh(layer.config));
-                        }
-                        break;
-                    case "LeakyReLU":
-                        Layers.Add(new LeakyReLU(layer.config));
-                        break;
-                    case "BatchNormalization":
-                        Layers.Add(new BatchNormalization(layer.config));
-                        break;
-                    case "UpSampling2D":
-                        Layers.Add(new UpSampling2D(layer.config));
-                        break;
-                    case "Concatenate":
-                        var thislayer = new Concatenate(layer.config);
-                        string alternativeLayerName = layer.inbound_nodes[0][1][0] as string;
-                        thislayer.AlternativeInputId = Layers.FindIndex(ly => string.Compare(ly.Name, alternativeLayerName) == 0);
-                        Layers.Add(thislayer);
-                        break;
-                    case "Add":
-                        var addlayer = new Add(layer.config);
-                        int alterinput = layer.inbound_nodes[0].FindIndex(node =>
-                            string.Compare(node[0] as string, Layers[Layers.Count - 1].Name) != 0);
-                        string addalternativeLayerName = layer.inbound_nodes[0][alterinput][0] as string;
-                        addlayer.AlternativeInputId = Layers.FindIndex(ly => string.Compare(ly.Name, addalternativeLayerName) == 0);
-                        Layers.Add(addlayer);
-                        break;
-                }
+                var nnlayer = JsonUtility.FromJson(modelSerialize.LayerJson[i],
+                    Type.GetType(modelSerialize.LayerTypes[i])) as NNLayerBase;
+                nnlayer.FromCache();
+                Layers.Add(nnlayer);
+                if (i == 0) Input = nnlayer as InputLayer;
             }
-            Output = new OutputLayer(null);
-        }
-
-        private void LoadWeight(List<KerasLayerWeightJson> weights)
-        {
-            int weightcount = 0;
-            for (int i = 0; i < Layers.Count; i++)
-            {
-                if (Layers[i] is Conv2D)
-                {
-                    Layers[i].LoadWeight(new KerasLayerWeightJson[2]
-                    {
-                        weights[weightcount],
-                        weights[weightcount + 1]
-                    });
-                    weightcount += 2;
-                }
-                if (Layers[i] is BatchNormalization)
-                {
-                    Layers[i].LoadWeight(new KerasLayerWeightJson[4] {
-                        weights[weightcount],
-                        weights[weightcount + 1],
-                        weights[weightcount + 2],
-                        weights[weightcount + 3]
-                    });
-                    weightcount += 4;
-                }
-            }
+            Output = new OutputLayer();
         }
 
         public void Init(int height, int width)

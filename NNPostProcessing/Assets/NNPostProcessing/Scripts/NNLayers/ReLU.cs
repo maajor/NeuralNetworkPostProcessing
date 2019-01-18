@@ -1,5 +1,4 @@
 ﻿// neural network post-processing
-// https://github.com/maajor/NeuralNetworkPostProcessing
 
 using System.Collections;
 using System.Collections.Generic;
@@ -11,7 +10,7 @@ namespace NNPP
     public class ReLU : NNLayerBase
     {
         protected ComputeBuffer outputbuffer;
-        public ReLU(KerasLayerConfigJson config) : base(config)
+        public ReLU() : base()
         {
             KernelId = NNCompute.Instance.Kernel("ReLU");
         }

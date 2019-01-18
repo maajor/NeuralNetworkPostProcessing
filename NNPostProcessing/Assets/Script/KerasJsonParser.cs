@@ -1,9 +1,8 @@
 ﻿// neural network post-processing
-// https://github.com/maajor/NeuralNetworkPostProcessing
 
 using System.Collections.Generic;
 
-namespace NNPP
+namespace NNPPUtil
 {
 
     [System.Serializable]

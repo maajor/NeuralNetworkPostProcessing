@@ -1,5 +1,4 @@
 ﻿// neural network post-processing
-// https://github.com/maajor/NeuralNetworkPostProcessing
 
 using System.Collections;
 using System.Collections.Generic;
@@ -11,7 +10,7 @@ namespace NNPP
     public class Tanh : NNLayerBase
     {
         private ComputeBuffer outputbuffer;
-        public Tanh(KerasLayerConfigJson config) : base(config)
+        public Tanh() : base()
         {
             KernelId = NNCompute.Instance.Kernel("Tanh");
         }

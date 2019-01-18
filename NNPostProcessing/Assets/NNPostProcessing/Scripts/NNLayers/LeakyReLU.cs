@@ -1,5 +1,4 @@
 ﻿// neural network post-processing
-// https://github.com/maajor/NeuralNetworkPostProcessing
 
 using System.Collections;
 using System.Collections.Generic;
@@ -11,9 +10,8 @@ namespace NNPP
     public class LeakyReLU : ReLU
     {
         public float Alpha;
-        public LeakyReLU(KerasLayerConfigJson config) : base(config)
+        public LeakyReLU() : base()
         {
-            Alpha = config.alpha;
             KernelId = NNCompute.Instance.Kernel("LeakyReLU");
         }
 

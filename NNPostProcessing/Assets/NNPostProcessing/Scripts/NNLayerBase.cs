@@ -1,5 +1,4 @@
 ﻿// neural network post-processing
-// https://github.com/maajor/NeuralNetworkPostProcessing
 
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -14,18 +13,15 @@ namespace NNPP
         public Vector3Int OutputShape;
         public Vector4 WeightShape;
         public object Output;
-        [SerializeField]
         protected int KernelId;
-        public NNLayerBase(KerasLayerConfigJson config)
+        public NNLayerBase()
         {
-            if (config != null)
-                Name = config.name;
         }
 
-        public virtual void LoadWeight(KerasLayerWeightJson[] weights)
+        /*public virtual void LoadWeight(KerasLayerWeightJson[] weights)
         {
 
-        }
+        }*/
 
         public virtual void Run(object[] input)
         {
@@ -40,6 +36,11 @@ namespace NNPP
 
         public virtual void Release()
         {
+        }
+
+        public virtual void FromCache()
+        {
+
         }
     }
 }

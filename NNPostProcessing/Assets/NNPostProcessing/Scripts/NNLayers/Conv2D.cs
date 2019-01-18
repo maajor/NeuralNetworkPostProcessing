@@ -1,5 +1,4 @@
 ﻿// neural network post-processing
-// https://github.com/maajor/NeuralNetworkPostProcessing
 
 using System;
 using System.Collections;
@@ -12,19 +11,24 @@ namespace NNPP
     [System.Serializable]
     public class Conv2D : NNLayerBase
     {
+        public float[] weightcache;
         public int Filters;
         public Vector2Int KernalSize;
         public Vector2Int Stride;
         private ComputeBuffer outputbuffer;
         private ComputeBuffer weightbuffer;
-        public Conv2D(KerasLayerConfigJson config) : base(config)
+        public Conv2D() : base()
         {
-            Filters = config.filters;
-            KernalSize = new Vector2Int(config.kernel_size[0], config.kernel_size[1]);
-            Stride = new Vector2Int(config.strides[0], config.strides[1]);
             KernelId = NNCompute.Instance.KernelConv2D(32);
         }
 
+        public override void FromCache()
+        {
+            weightbuffer = new ComputeBuffer(weightcache.Length, sizeof(float));
+            weightbuffer.SetData(weightcache);
+            weightcache = null;
+        }
+        /*
         public override void LoadWeight(KerasLayerWeightJson[] weightsKernel)
         {
             WeightShape = new Vector4(weightsKernel[0].shape[0],
@@ -57,7 +61,7 @@ namespace NNPP
             weightbuffer = new ComputeBuffer(kernel_weight_length + bias_weight_length, sizeof(float));
             weightbuffer.SetData(Weights);
         }
-
+        */
         public override void Init(Vector3Int inputShape)
         {
             InputShape = inputShape;

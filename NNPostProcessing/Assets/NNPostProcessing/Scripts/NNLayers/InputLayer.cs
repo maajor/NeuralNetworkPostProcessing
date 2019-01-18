@@ -1,5 +1,4 @@
 ﻿// neural network post-processing
-// https://github.com/maajor/NeuralNetworkPostProcessing
 
 using System.Collections;
 using System.Collections.Generic;
@@ -13,10 +12,9 @@ namespace NNPP
         private ComputeBuffer outputbuffer;
         public int InputChannels;
         public RenderTexture src;
-        public InputLayer(KerasLayerConfigJson config) : base(config)
+        public InputLayer() : base()
         {
             KernelId = NNCompute.Instance.Kernel("InputLayer");
-            InputChannels = int.Parse(config.batch_input_shape[3]);
         }
 
         public override void Run(object[] input)

@@ -1,5 +1,4 @@
 ﻿// neural network post-processing
-// https://github.com/maajor/NeuralNetworkPostProcessing
 #pragma kernel LeakyReLU THREADS=1
 #pragma kernel BatchNormalization THREADS=1 
 #pragma kernel InputLayer THREADS=1

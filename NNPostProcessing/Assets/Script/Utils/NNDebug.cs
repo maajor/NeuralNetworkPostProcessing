@@ -19,7 +19,7 @@ public class NNDebug : MonoBehaviour {
         for (int i = 1; i < 32; i++)
         {
             NNModel model = new NNModel();
-            model.debug_layer = i;
+            //model.debug_layer = i;
             model.Load("starry_night");
             var dst = model.Predict(source);
 

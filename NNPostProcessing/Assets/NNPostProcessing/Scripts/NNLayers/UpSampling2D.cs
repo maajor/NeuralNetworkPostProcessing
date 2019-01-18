@@ -1,5 +1,4 @@
 ﻿// neural network post-processing
-// https://github.com/maajor/NeuralNetworkPostProcessing
 
 using System.Collections;
 using System.Collections.Generic;
@@ -12,9 +11,8 @@ namespace NNPP
     {
         public Vector2Int Size;
         private ComputeBuffer outputbuffer;
-        public UpSampling2D(KerasLayerConfigJson config) : base(config)
+        public UpSampling2D() : base()
         {
-            Size = new Vector2Int(config.size[0], config.size[1]);
             KernelId = NNCompute.Instance.Kernel("UpSampling2D");
         }
         public override void Init(Vector3Int inputShape)

@@ -1,5 +1,4 @@
 ﻿// neural network post-processing
-// https://github.com/maajor/NeuralNetworkPostProcessing
 
 using System.Collections;
 using System.Collections.Generic;
@@ -12,7 +11,7 @@ namespace NNPP
     {
         private ComputeBuffer outputbuffer;
         public int AlternativeInputId;
-        public Add(KerasLayerConfigJson config) : base(config)
+        public Add() : base()
         {
             KernelId = NNCompute.Instance.Kernel("Add");
         }
