@@ -23,9 +23,10 @@ namespace NNPP
 #endif
         public void Load(string name)
         {
-            Layers = new List<NNLayerBase>();
             TextAsset text = Resources.Load<TextAsset>("Model/" + name);
             NNModelSerialize modelSerialize = JsonUtility.FromJson<NNModelSerialize>(text.text);
+
+            Layers = new List<NNLayerBase>();
             for (int i = 0; i < modelSerialize.LayerJson.Count; i++)
             {
                 var nnlayer = JsonUtility.FromJson(modelSerialize.LayerJson[i],

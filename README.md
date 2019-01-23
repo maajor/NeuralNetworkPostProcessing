@@ -1,8 +1,6 @@
 Neural Network Post Processing
 ========
 
-(This Project is Working in Progress, could be with bugs)
-
 Post Processing for Unity using Convolution Neural Network. CNN Model trained with pix2pix/GAN, Fast Neural Style Transfer 
 You can create your style offline and train the network with your own data, making your NNPP!
 
@@ -13,9 +11,13 @@ You can create your style offline and train the network with your own data, maki
 trained with Fast Neural Style Transfer:   
 [![FNST](http://img.youtube.com/vi/aA8qO4o-Xp0/0.jpg)](http://www.youtube.com/watch?v=aA8qO4o-Xp0 "FNST")
 
+This is the source-code for both runtime and trainning. Pre-trained model is on AssetStore  
+[Neural Network Post Processing on Unity AssetStore](https://assetstore.unity.com/packages/vfx/shaders/neural-network-post-processing-135895)  
+![img](/Imgs/img_large.jpg)
+
 ## How to Run:
 
-Open ***HirezScene*** scene and run!
+Open ***Scene*** scene and run!
 
 ### Requirement
 * Unity 2018.2+

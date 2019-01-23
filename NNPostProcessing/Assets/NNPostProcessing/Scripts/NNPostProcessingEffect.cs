@@ -43,8 +43,6 @@ namespace NNPP
         sketch,
         starry_night,
         udnie,
-        wave_crop,
-        gritty,
-        watercolor
+        wave
     }
 }
