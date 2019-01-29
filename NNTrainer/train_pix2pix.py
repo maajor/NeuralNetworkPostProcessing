@@ -25,7 +25,7 @@ class GAN():
         # Input shape
         self.img_rows = 512
         self.img_cols = 512
-        self.channels = 4
+        self.channels = 3
         self.img_shape = (self.img_rows, self.img_cols, self.channels)
 
         # Configure data loader
@@ -210,11 +210,11 @@ class GAN():
         fig.savefig("images/%s/%d_%d.png" % (self.dataset_name, epoch, batch_i))
         plt.close()
 
-    def save_model(self, path = "model"):
+    def save_model(self):
         model_json = self.generator.to_json()
-        with open("model/" + path + "_architecture.json", "w") as json_file:
+        with open("model/" + self.dataset_name + "_architecture.json", "w") as json_file:
             json_file.write(model_json)
-        self.generator.save_weights("model/" + path + "_weight.h5")
+        self.generator.save_weights("model/" + self.dataset_name + "_weight.h5")
         print("Saved model to disk")
 
 

@@ -1,7 +1,3 @@
-python exporter.py --modelpath sketch --modeltype fst
-python exporter.py --modelpath des_glaneuses --modeltype fst
-python exporter.py --modelpath la_muse --modeltype fst
-python exporter.py --modelpath mirror --modeltype fst
-python exporter.py --modelpath starry_night --modeltype fst
-python exporter.py --modelpath udnie --modeltype fst
-python exporter.py --modelpath wave_crop --modeltype fst
+python exporter.py --dataset_name shanshui --modeltype fst
+python exporter.py --dataset_name shanshui1 --modeltype fst
+python exporter.py --dataset_name shanshui2 --modeltype fst

@@ -95,7 +95,7 @@ namespace NNPP
                         Layers[(Layers[i] as Concatenate).AlternativeInputId].Output,
                     });
                 }
-                if (Layers[i] is Add)
+                else if (Layers[i] is Add)
                 {
                     Layers[i].Run(new object[2]
                     {

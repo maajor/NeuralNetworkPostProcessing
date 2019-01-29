@@ -1,3 +1,2 @@
-python train_fst.py --style des_glaneuses
-python train_fst.py --style starry_night
-python train_fst.py --style wave_crop
+python train_fst.py --style shanshui1 --style_weight 5
+python train_fst.py --style shanshui2 --style_weight 10

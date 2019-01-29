@@ -24,15 +24,9 @@ class DataLoader():
             img = self.imread(img_path)
 
             h, w, _ = img.shape
-            _w = int(w/3)
-            img_color, img_dep, img_target = img[:, :_w, :], img[:, _w:2*_w, :],  img[:, 2*_w:, :]
-            img_src = np.zeros([h,_w,4])
-            img_dst = np.zeros([h,_w,4])
-            img_src[:,:,:3] = img_color
-            img_src[:,:,3]  = img_dep[:,:,1]
-            img_dst[:,:,:3] = img_target
-            img_dst[:,:,3]  = img_dep[:,:,1]
-            img_B, img_A = img_src, img_dst
+            _w = int(w/2)
+            img_color, img_target = img[:, :_w, :],  img[:, _w:, :]
+            img_B, img_A = img_color, img_target
 
             img_A = scipy.misc.imresize(img_A, self.img_res)
             img_B = scipy.misc.imresize(img_B, self.img_res)
@@ -63,15 +57,9 @@ class DataLoader():
                 img = self.imread(img)
                 h, w, _ = img.shape
 
-                _w = int(w/3)
-                img_color, img_dep, img_target = img[:, :_w, :], img[:, _w:2*_w, :],  img[:, 2*_w:, :]
-                img_src = np.zeros([h,_w,4])
-                img_dst = np.zeros([h,_w,4])
-                img_src[:,:,:3] = img_color
-                img_src[:,:,3]  = img_dep[:,:,1]
-                img_dst[:,:,:3] = img_target
-                img_dst[:,:,3]  = img_dep[:,:,1]
-                img_B, img_A = img_src, img_dst
+                _w = int(w/2)
+                img_color, img_target = img[:, :_w, :], img[:, _w:, :]
+                img_B, img_A = img_color, img_target
 
                 img_A = scipy.misc.imresize(img_A, self.img_res)
                 img_B = scipy.misc.imresize(img_B, self.img_res)
