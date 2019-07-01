@@ -130,7 +130,7 @@ namespace NNPP
                 Stride.x,
                 Stride.y
             });
-            NNCompute.Instance.Shader.Dispatch(KernelId, Mathf.CeilToInt(OutputShape.x / 4.0f), OutputShape.y, 1);
+            NNCompute.Instance.Shader.Dispatch(KernelId, 1, OutputShape.y, Mathf.CeilToInt(OutputShape.x/4.0f));
         }
     }
 }

@@ -25,8 +25,8 @@ namespace NNPP
 
         }
 
-        private int[] Conv2DKernelLayers = new int[6] { 8, 12, 16, 20, 32, 64 };
-        private int[] Conv2DKernels = new int[6];
+        private int[] Conv2DKernelLayers = new int[8] { 8, 12, 16, 20, 32, 64, 128, 256};
+        private int[] Conv2DKernels = new int[8];
 
         public ComputeShader Shader;
         private string shaderpath = "NNLayer";
@@ -35,7 +35,7 @@ namespace NNPP
 
         private void Init()
         {
-            Conv2DKernels = new int[6];
+            Conv2DKernels = new int[8];
             Shader = Resources.Load<ComputeShader>(shaderpath);
             for (int i = 0; i < Conv2DKernelLayers.Length; i++)
             {

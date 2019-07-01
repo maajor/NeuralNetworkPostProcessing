@@ -14,6 +14,8 @@
 #pragma kernel Conv2D_20 THREADS=20
 #pragma kernel Conv2D_32 THREADS=32
 #pragma kernel Conv2D_64 THREADS=64
+#pragma kernel Conv2D_128 THREADS=128
+#pragma kernel Conv2D_256 THREADS=256
 
 Texture2D<half3> InputImage;
 Texture2D<half> InputImage1;
@@ -44,17 +46,17 @@ uniform half Alpha;
 #define n_Ho OutputShape.x
 #define n_Co OutputShape.z
 
-groupshared half cache[THREADS*4];
+groupshared float cache[THREADS*4];
 
-[numthreads(4, 1, THREADS)]
+[numthreads(THREADS, 1, 4)]
 #define KERNEL_NAME(x, y) x##_##y
 void KERNEL_NAME(Conv2D, THREADS)
 (uint3 id : SV_DispatchThreadID, uint3 groupid : SV_GroupThreadID)
 {
 	//id: outputshape
-	uint2 InputId = id.xy * Stride;
+	uint2 InputId = id.zy * Stride;
 
-	half bias = Weights[n_Wk * n_Hk * n_Ci * n_Ck + id.z];
+	half bias = Weights[n_Wk * n_Hk * n_Ci * n_Ck + id.x];
 	half conv = 0;
 
 	uint3 offset = uint3((n_Wk - 1) / 2, (n_Hk - 1) / 2, 0);
@@ -64,29 +66,31 @@ void KERNEL_NAME(Conv2D, THREADS)
 		//each kernel y
 		for (uint q = 0; q < n_Hk; q++) {
 			
-			int3 input_id = int3(InputId.yx, id.z) - int3(offset) + int3(p, q, 0);
+			int3 input_id = int3(InputId.xy, id.x) - int3(offset) + int3(p, q, 0);
 
-			if (id.z < n_Ci) {
+			if (id.x < n_Ci) {
 				//reflect padding
 				input_id.x = input_id.x < 0 ? -input_id.x : input_id.x;
 				input_id.y = input_id.y < 0 ? -input_id.y : input_id.y;
-				input_id.x = input_id.x > (int)InputShape.y ? 2 * (int)InputShape.y - input_id.x : input_id.x;
-				input_id.y = input_id.y > (int)InputShape.x ? 2 * (int)InputShape.x - input_id.y : input_id.y;
+				input_id.x = input_id.x > (int)InputShape.x ? 2 * (int)InputShape.x - input_id.x : input_id.x;
+				input_id.y = input_id.y > (int)InputShape.y ? 2 * (int)InputShape.y - input_id.y : input_id.y;
 				
-				cache[groupid.x * THREADS + id.z] = LayerInput0[dot(input_id.yxz, InputShapeIdMultiplier)];
+				cache[groupid.z * THREADS + id.x] = LayerInput0[dot(input_id.xyz, InputShapeIdMultiplier)];
 			}
 			
 			GroupMemoryBarrierWithGroupSync();
 			
 			//each layer input, n_Ci = kernel z
 			for (uint w = 0; w < n_Ci; w++) {
-				conv += cache[groupid.x * THREADS + w] * Weights[dot(uint4(q, p, w, id.z), WeightsShapeIdMultiplier)];
+				conv += cache[groupid.z * THREADS + w] * Weights[dot(uint4(p, q, w, id.x), WeightsShapeIdMultiplier)];
 			}
 
 			GroupMemoryBarrierWithGroupSync();
 		}
 	}
-	LayerOutput[dot(id.xyz, OutputShapeIdMultiplier)] = conv + bias;
+	if (id.x < n_Co) {
+		LayerOutput[dot(id.zyx, OutputShapeIdMultiplier)] = conv + bias;
+	}
 }
 
 [numthreads(32, 1, 1)]
