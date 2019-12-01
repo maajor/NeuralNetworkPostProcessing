@@ -96,13 +96,15 @@ void KERNEL_NAME(Conv2D, THREADS)
 [numthreads(32, 1, 1)]
 void ReLU(uint3 id : SV_DispatchThreadID)
 {
-	LayerOutput[id.x] = LayerInput0[id.x] > 0 ? LayerInput0[id.x] : 0;
+	uint flattenid = dot(id, InputShapeIdMultiplier);
+	LayerOutput[flattenid] = LayerInput0[flattenid] > 0 ? LayerInput0[flattenid] : 0;
 }
 
 [numthreads(32, 1, 1)]
 void Tanh(uint3 id : SV_DispatchThreadID)
 {
-	LayerOutput[id.x] = tanh(LayerInput0[id.x]);
+	uint flattenid = dot(id, InputShapeIdMultiplier);
+	LayerOutput[flattenid] = tanh(LayerInput0[flattenid]);
 }
 
 [numthreads(32, 1, 1)]
