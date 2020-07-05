@@ -49,4 +49,6 @@ run `python exporter.py --dataset_name <your-style-name> --modeltype fnst`
 -  In Unity Project Window selected your recent imported model, should be `Assets/Script/RawModel/<your-dataset-name>.json`, right click it, from the pop-up menu select "ParseFromRawModel"  
 -  Add `<your-dataset-name>` to script enum "NNStyle"  
 
-Now you should be able to select the model from NNPostProcessingEffect inspector window   
+Now you should be able to select the model from NNPostProcessingEffect inspector window  
+
+## Module

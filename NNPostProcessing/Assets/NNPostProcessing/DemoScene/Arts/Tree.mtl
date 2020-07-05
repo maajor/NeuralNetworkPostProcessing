@@ -1,0 +1,8 @@
+newmtl Branches_0
+Kd 1 1 1
+illum 2
+
+newmtl Leaves_1
+Kd 1 1 1
+illum 2
+
