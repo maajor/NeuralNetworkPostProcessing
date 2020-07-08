@@ -65,6 +65,12 @@ namespace NNPP
             NNCompute.Instance.Shader.SetBuffer(KernelId, "LayerInput0", input[0] as ComputeBuffer);
             NNCompute.Instance.Shader.SetBuffer(KernelId, "LayerOutput", outputbuffer);
             NNCompute.Instance.Shader.SetBuffer(KernelId, "Weights", weightbuffer);
+            NNCompute.Instance.Shader.SetInts("InputShapeIdMultiplier", new int[3]
+            {
+                InputShape.y * InputShape.z,
+                InputShape.z,
+                1
+            });
             NNCompute.Instance.Shader.SetInts("InputShape", new int[3]
             {
                 InputShape.x,
@@ -77,10 +83,11 @@ namespace NNPP
                 OutputShape.y,
                 OutputShape.z
             });
+            //Threadgroup could exceed 65536 in high resolution, expand to 2d.
             NNCompute.Instance.Shader.Dispatch(
                 KernelId, 
-                Mathf.CeilToInt(OutputShape.x * OutputShape.y / 32.0f), 
-                OutputShape.z, 1);
+                Mathf.CeilToInt(OutputShape.x / 8.0f),
+                Mathf.CeilToInt(OutputShape.y / 4.0f), OutputShape.z);
         }
     }
 }

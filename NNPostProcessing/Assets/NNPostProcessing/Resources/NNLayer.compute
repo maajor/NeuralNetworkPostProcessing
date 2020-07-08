@@ -131,18 +131,18 @@ void Add(uint3 id : SV_DispatchThreadID)
 }
 
 //momentum trained, take parameter as population mean/std
-[numthreads(32, 1, 1)]
+[numthreads(8, 4, 1)]
 void BatchNormalization(const uint3 id : SV_DispatchThreadID)
 {
-	half gamma			= Weights[id.y * 4];
-	half beta			= Weights[id.y * 4 + 1];
-	half mov_mean		= Weights[id.y * 4 + 2];
-	half mov_variance	= Weights[id.y * 4 + 3];
+	half gamma			= Weights[id.z * 4];
+	half beta			= Weights[id.z * 4 + 1];
+	half mov_mean		= Weights[id.z * 4 + 2];
+	half mov_variance	= Weights[id.z * 4 + 3];
 
 	half rescale = sqrt(mov_variance + 1e-3);
 	rescale = gamma / rescale;
-	uint idx = id.x * n_Ci + id.y;
-	LayerOutput[idx] = LayerInput0[idx] * rescale - mov_mean * rescale + beta;
+	uint flattenid = dot(id, InputShapeIdMultiplier);
+	LayerOutput[flattenid] = LayerInput0[flattenid] * rescale - mov_mean * rescale + beta;
 }
 
 [numthreads(8, 8, 1)]
