@@ -28,3 +28,4 @@ Reference
 * https://github.com/eriklindernoren/Keras-GAN  
 * https://github.com/misgod/fast-neural-style-keras  
 * https://github.com/keijiro/Pix2Pix
+* https://github.com/altonelli/fast-style-transfer-tf2

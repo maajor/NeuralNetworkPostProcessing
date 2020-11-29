@@ -49,3 +49,7 @@ sysinfo.txt
 # Builds
 *.apk
 *.unitypackage
+
+
+NNPostProcessing/Assets/NNPostProcessing/Resources/*
+NNPostProcessing/Assets/Script/*
